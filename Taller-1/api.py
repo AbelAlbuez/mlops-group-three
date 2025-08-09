@@ -1,87 +1,180 @@
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
-from typing import Literal, Optional, List, Dict, Any
-from enum import Enum
+# api.py
+from pathlib import Path
+from typing import Dict, List, Optional
+import json
+
 import joblib
 import pandas as pd
-import numpy as np
-import json
-from pathlib import Path
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
 
-# Pydantic Models
-class ModelType(str, Enum):
-    RANDOM_FOREST = "random_forest"
-    KNN = "knn"
-    SVM = "svm"
+# -------------------------------------------------------------------
+# Config
+# -------------------------------------------------------------------
+ROOT = Path(__file__).parent
+# Use migrated pipelines (each is a full sklearn Pipeline ready to predict)
+MODELS: Dict[str, Path] = {
+    "knn": ROOT / "Modelos" / "migrated" / "knn.pkl",
+    "svm": ROOT / "Modelos" / "migrated" / "svm.pkl",
+    "rf":  ROOT / "Modelos" / "migrated" / "rf.pkl",
+}
+DEFAULT_MODEL = "rf"
 
-class PenguinFeatures(BaseModel):
-    bill_length_mm: float = Field(..., ge=0, le=100)
-    bill_depth_mm: float = Field(..., ge=0, le=50)
-    flipper_length_mm: float = Field(..., ge=0, le=300)
-    body_mass_g: float = Field(..., ge=0, le=10000)
-    island: Literal["Torgersen", "Biscoe", "Dream"]
-    sex: Literal["male", "female"]
-    
-    class Config:
-        schema_extra = {
-            "example": {
-                "bill_length_mm": 39.1,
-                "bill_depth_mm": 18.7,
-                "flipper_length_mm": 181.0,
-                "body_mass_g": 3750.0,
-                "island": "Torgersen",
-                "sex": "male"
-            }
-        }
+# -------------------------------------------------------------------
+# Schemas
+# -------------------------------------------------------------------
+class PenguinInput(BaseModel):
+    # numeric required
+    bill_length_mm: float = Field(..., example=44.5)
+    bill_depth_mm: float = Field(..., example=17.1)
+    flipper_length_mm: float = Field(..., example=200)
+    body_mass_g: float = Field(..., example=4200)
+    # optional raw fields (handled if your scaler expects them)
+    island: Optional[str] = Field(None, example="Biscoe")      # Dream, Torgersen, Biscoe
+    sex: Optional[str] = Field(None, example="male")           # male, female
+    year: Optional[int] = Field(None, example=2008)
 
-class PredictionResponse(BaseModel):
-    model_used: str
-    species: str
-    confidence: Optional[float] = None
-    probabilities: Optional[Dict[str, float]] = None
+class BatchInput(BaseModel):
+    items: List[PenguinInput]
 
-class MultiModelPredictionResponse(BaseModel):
-    predictions: List[PredictionResponse]
-    consensus: Optional[str] = None
+# -------------------------------------------------------------------
+# App + In-memory registry
+# -------------------------------------------------------------------
+app = FastAPI(title="Palmer Penguins API", version="1.0")
 
-# Model Manager Class
-class ModelManager:
-    def __init__(self, models_dir: str = "models"):
-        self.models_dir = Path(models_dir)
-        self.models = {}
-        self.scalers = {}
-        self.registry = {}
-        self._load_registry()
-        self._load_models()
-    
-    def _load_registry(self):
-        """Load model registry"""
-        registry_path = self.models_dir / "registry.json"
-        if registry_path.exists():
-            with open(registry_path, "r") as f:
-                self.registry = json.load(f)
-        else:
-            raise FileNotFoundError("registry.json not found in models directory")
-    
-    def _load_models(self):
-        """Load all models and scalers"""
-        for model_name, config in self.registry["models"].items():
-            # Load model
-            model_path = self.models_dir / config["model_file"]
-            if model_path.exists():
-                self.models[model_name] = joblib.load(model_path)
-            else:
-                print(f"Warning: Model {config['model_file']} not found")
-            
-            # Load scaler if needed
-            if config["scaler_file"]:
-                scaler_path = self.models_dir / config["scaler_file"]
-                if scaler_path.exists():
-                    self.scalers[model_name] = joblib.load(scaler_path)
-    
-    def preprocess_features(self, features: PenguinFeatures, model_name: str) -> np.ndarray:
-        """Preprocess features for model"""
-        # Create one-hot encoded features
-        data = {
-            'bill_length_mm': features.bill_length_mm,
+_loaded: Dict[str, object] = {}
+_current: Optional[str] = None
+
+# -------------------------------------------------------------------
+# Helpers to handle expected columns (scaler/one-hot/year)
+# -------------------------------------------------------------------
+def expected_columns(pipe) -> List[str]:
+    """Infer expected input columns from pipeline steps or fallback to numeric."""
+    # Prefer preprocessor step (scaler or identity) if it exposes feature_names_in_
+    for step_name in ("scaler", "identity"):
+        step = pipe.named_steps.get(step_name)
+        if step is not None:
+            cols = getattr(step, "feature_names_in_", None)
+            if cols is not None:
+                return list(cols)
+    # Some classifiers might have feature_names_in_
+    clf = pipe.named_steps.get("clf")
+    cols = getattr(clf, "feature_names_in_", None)
+    if cols is not None:
+        return list(cols)
+    # Fallback to the basic numeric columns used across examples
+    return ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
+
+def expand_features(df: pd.DataFrame, expected_cols: List[str]) -> pd.DataFrame:
+    """
+    Build a DataFrame with exactly the expected columns:
+    - Numeric: bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g
+    - Optional: year
+    - One-hot for island_* and sex_* (sex_male/sex_female)
+    Missing columns are created with zeros; unknown islands map to all-zeros.
+    """
+    out = pd.DataFrame(index=df.index)
+
+    # numeric base
+    for c in ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]:
+        if c in expected_cols:
+            out[c] = df.get(c)
+
+    # year
+    if "year" in expected_cols:
+        out["year"] = df.get("year", 2008)
+
+    # sex one-hot
+    if any(c.startswith("sex_") for c in expected_cols):
+        sex_series = df.get("sex", "male").astype(str).str.lower()
+        if "sex_male" in expected_cols:
+            out["sex_male"] = (sex_series == "male").astype(int)
+        if "sex_female" in expected_cols:
+            out["sex_female"] = (sex_series == "female").astype(int)
+
+    # island one-hot (dynamic based on expected column names)
+    if any(c.startswith("island_") for c in expected_cols):
+        isl = df.get("island", "Biscoe").astype(str)
+        for c in expected_cols:
+            if c.startswith("island_"):
+                val = c.split("island_", 1)[1]
+                out[c] = (isl == val).astype(int)
+
+    # Fill any missing expected columns with 0
+    for c in expected_cols:
+        if c not in out.columns:
+            out[c] = 0
+
+    # Keep exact order
+    return out[expected_cols]
+
+def to_dataframe(items: List[PenguinInput], pipe) -> pd.DataFrame:
+    raw = pd.DataFrame([x.dict() for x in items])
+    exp_cols = expected_columns(pipe)
+    return expand_features(raw, exp_cols)
+
+# -------------------------------------------------------------------
+# Startup: load all pipelines
+# -------------------------------------------------------------------
+@app.on_event("startup")
+def startup():
+    global _current
+    for name, path in MODELS.items():
+        if not path.exists():
+            raise RuntimeError(f"Missing model file: {path}")
+        _loaded[name] = joblib.load(path)
+    _current = DEFAULT_MODEL
+
+# -------------------------------------------------------------------
+# Endpoints
+# -------------------------------------------------------------------
+@app.get("/health")
+def health():
+    return {"status": "ok", "active_model": _current, "available": list(_loaded.keys())}
+
+@app.get("/models")
+def list_models():
+    return {"active": _current, "available": list(_loaded.keys())}
+
+@app.post("/models/select/{name}")
+def select_model(name: str):
+    """BONUS: switch the active model used for inference."""
+    global _current
+    if name not in _loaded:
+        raise HTTPException(status_code=404, detail=f"Model '{name}' not found.")
+    _current = name
+    return {"message": f"active model set to '{name}'"}
+
+@app.post("/predict")
+def predict(item: PenguinInput):
+    if _current is None:
+        raise HTTPException(500, "No active model.")
+    pipe = _loaded[_current]
+    df = to_dataframe([item], pipe)
+    pred = pipe.predict(df)[0]
+    result = {"model": _current, "prediction": str(pred)}
+    if hasattr(pipe, "predict_proba"):
+        try:
+            proba = pipe.predict_proba(df)[0].tolist()
+            classes = [str(c) for c in getattr(pipe, "classes_", [])]
+            result["probs"] = dict(zip(classes, proba))
+        except Exception:
+            result["probs"] = {}
+    return result
+
+@app.post("/predict/batch")
+def predict_batch(payload: BatchInput):
+    if _current is None:
+        raise HTTPException(500, "No active model.")
+    pipe = _loaded[_current]
+    df = to_dataframe(payload.items, pipe)
+    preds = [str(p) for p in pipe.predict(df).tolist()]
+    out = {"model": _current, "predictions": preds}
+    if hasattr(pipe, "predict_proba"):
+        try:
+            probas = pipe.predict_proba(df).tolist()
+            classes = [str(c) for c in getattr(pipe, "classes_", [])]
+            out["probs"] = [dict(zip(classes, row)) for row in probas]
+        except Exception:
+            pass
+    return out
