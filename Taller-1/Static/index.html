@@ -136,8 +136,8 @@
                             class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-200"
                             required>
                             <option value="">Select sex</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
                         </select>
                     </div>
 
@@ -174,6 +174,20 @@
                 </div>
             </form>
 
+            <!-- Model Selection -->
+            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                <label for="modelSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-brain mr-2 text-indigo-500"></i>
+                    Select Model
+                </label>
+                <select id="modelSelect" 
+                        class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="rf">Random Forest</option>
+                    <option value="knn">K-Nearest Neighbors</option>
+                    <option value="svm">Support Vector Machine</option>
+                </select>
+            </div>
+
             <!-- Results Section -->
             <div id="results" class="hidden mt-8 p-6 bg-white rounded-xl border border-gray-200 shadow-inner">
                 <h3 class="text-xl font-semibold text-gray-800 mb-4">
@@ -182,6 +196,17 @@
                 </h3>
                 <div id="predictionResult" class="space-y-4">
                     <!-- Results will be populated here -->
+                </div>
+            </div>
+
+            <!-- Error Section -->
+            <div id="errorSection" class="hidden mt-8 p-6 bg-red-50 rounded-xl border border-red-200">
+                <h3 class="text-xl font-semibold text-red-800 mb-4">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    Error
+                </h3>
+                <div id="errorMessage" class="text-red-700">
+                    <!-- Error message will be populated here -->
                 </div>
             </div>
         </div>
@@ -207,6 +232,17 @@
     </div>
 
     <script>
+        // Load available models on page load
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch('/models');
+                const data = await response.json();
+                console.log('Available models:', data.available);
+            } catch (error) {
+                console.log('Could not load model info:', error);
+            }
+        });
+
         document.getElementById('predictionForm').addEventListener('submit', async function (e) {
             e.preventDefault();
 
@@ -214,66 +250,87 @@
             const submitText = document.getElementById('submitText');
             const loadingText = document.getElementById('loadingText');
             const results = document.getElementById('results');
+            const errorSection = document.getElementById('errorSection');
             const predictionResult = document.getElementById('predictionResult');
+            const errorMessage = document.getElementById('errorMessage');
 
             // Show loading state
             submitBtn.disabled = true;
             submitText.classList.add('hidden');
             loadingText.classList.remove('hidden');
             results.classList.add('hidden');
+            errorSection.classList.add('hidden');
 
             // Collect form data
             const formData = new FormData(this);
             const data = Object.fromEntries(formData);
 
-            // Convert numeric fields
-            data.bill_length_mm = parseFloat(data.bill_length_mm);
-            data.bill_depth_mm = parseFloat(data.bill_depth_mm);
-            data.flipper_length_mm = parseInt(data.flipper_length_mm);
-            data.body_mass_g = parseInt(data.body_mass_g);
+            // Convert numeric fields and prepare data for API
+            const requestData = {
+                bill_length_mm: parseFloat(data.bill_length_mm),
+                bill_depth_mm: parseFloat(data.bill_depth_mm),
+                flipper_length_mm: parseInt(data.flipper_length_mm),
+                body_mass_g: parseInt(data.body_mass_g),
+                sex: data.sex,
+                island: data.island,
+                year: 2008 // Default year as shown in smoke_test.py
+            };
+
+            const selectedModel = document.getElementById('modelSelect').value;
 
             try {
-                // Mock API call - replace with actual endpoint
+                // First, select the model if it's different from the current one
+                if (selectedModel) {
+                    await fetch(`/models/select/${selectedModel}`, {
+                        method: 'POST'
+                    });
+                }
+
+                // Make prediction request
                 const response = await fetch('/predict', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(requestData)
                 });
 
                 if (!response.ok) {
-                    throw new Error('Prediction failed');
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const result = await response.json();
-
-                // Display results
-                displayResults(result);
+                displayResults(result, requestData);
 
             } catch (error) {
                 console.error('Error:', error);
-                // Mock successful response for demo
-                setTimeout(() => {
-                    const mockResult = {
-                        species: ['Adelie', 'Chinstrap', 'Gentoo'][Math.floor(Math.random() * 3)],
-                        confidence: (Math.random() * 0.3 + 0.7).toFixed(3),
-                        model_used: 'Random Forest',
-                        features_used: data
-                    };
-                    displayResults(mockResult);
-                }, 1500);
-            }
-
-            // Reset button state
-            setTimeout(() => {
+                displayError(error.message);
+            } finally {
+                // Reset button state
                 submitBtn.disabled = false;
                 submitText.classList.remove('hidden');
                 loadingText.classList.add('hidden');
-            }, 1500);
+            }
         });
 
-        function displayResults(result) {
+        function displayError(message) {
+            const errorSection = document.getElementById('errorSection');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            errorMessage.innerHTML = `
+                <div class="p-4 bg-red-100 rounded-lg">
+                    <p class="font-semibold">Prediction failed:</p>
+                    <p class="mt-2 text-sm">${message}</p>
+                    <p class="mt-2 text-xs text-red-600">Please check your input values and try again.</p>
+                </div>
+            `;
+            
+            errorSection.classList.remove('hidden');
+            errorSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function displayResults(result, inputData) {
             const predictionResult = document.getElementById('predictionResult');
             const results = document.getElementById('results');
 
@@ -289,28 +346,79 @@
                 'Gentoo': 'text-purple-600'
             };
 
+            // Get the highest probability for confidence
+            let confidence = 0;
+            let probsHtml = '';
+            
+            if (result.probs && Object.keys(result.probs).length > 0) {
+                confidence = Math.max(...Object.values(result.probs));
+                
+                // Create probability bars
+                probsHtml = `
+                    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <p class="text-sm font-medium text-gray-700 mb-3">Class Probabilities:</p>
+                        <div class="space-y-2">
+                `;
+                
+                for (const [species, prob] of Object.entries(result.probs)) {
+                    const percentage = (prob * 100).toFixed(1);
+                    const isWinner = prob === confidence;
+                    const barColor = isWinner ? 'bg-green-500' : 'bg-gray-300';
+                    const textColor = isWinner ? 'font-bold text-green-700' : 'text-gray-600';
+                    
+                    probsHtml += `
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm ${textColor} w-20">${species}</span>
+                            <div class="flex-1 mx-3 bg-gray-200 rounded-full h-2">
+                                <div class="${barColor} h-2 rounded-full transition-all duration-300" style="width: ${percentage}%"></div>
+                            </div>
+                            <span class="text-sm ${textColor} w-12 text-right">${percentage}%</span>
+                        </div>
+                    `;
+                }
+                
+                probsHtml += `
+                        </div>
+                    </div>
+                `;
+            } else {
+                confidence = 0.95; // Fallback confidence
+            }
+
             predictionResult.innerHTML = `
                 <div class="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg">
                     <div class="flex items-center space-x-3">
-                        <span class="text-3xl">${speciesEmoji[result.species] || '🐧'}</span>
+                        <span class="text-3xl">${speciesEmoji[result.prediction] || '🐧'}</span>
                         <div>
                             <p class="text-sm text-gray-600">Predicted Species</p>
-                            <p class="text-xl font-bold ${speciesColor[result.species] || 'text-gray-800'}">${result.species}</p>
+                            <p class="text-xl font-bold ${speciesColor[result.prediction] || 'text-gray-800'}">${result.prediction}</p>
                         </div>
                     </div>
                     <div class="text-right">
                         <p class="text-sm text-gray-600">Confidence</p>
-                        <p class="text-lg font-semibold text-gray-800">${(result.confidence * 100).toFixed(1)}%</p>
+                        <p class="text-lg font-semibold text-gray-800">${(confidence * 100).toFixed(1)}%</p>
                     </div>
                 </div>
+                ${probsHtml}
                 <div class="grid grid-cols-2 gap-4 mt-4">
                     <div class="p-3 bg-gray-50 rounded-lg">
                         <p class="text-sm text-gray-600">Model Used</p>
-                        <p class="font-medium">${result.model_used || 'ML Model'}</p>
+                        <p class="font-medium">${result.model || 'Unknown'}</p>
                     </div>
                     <div class="p-3 bg-gray-50 rounded-lg">
                         <p class="text-sm text-gray-600">Prediction Time</p>
                         <p class="font-medium">${new Date().toLocaleTimeString()}</p>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-2">Input Parameters:</p>
+                    <div class="text-xs text-gray-700 grid grid-cols-2 gap-2">
+                        <div>Bill Length: ${inputData.bill_length_mm}mm</div>
+                        <div>Bill Depth: ${inputData.bill_depth_mm}mm</div>
+                        <div>Flipper Length: ${inputData.flipper_length_mm}mm</div>
+                        <div>Body Mass: ${inputData.body_mass_g}g</div>
+                        <div>Sex: ${inputData.sex}</div>
+                        <div>Island: ${inputData.island}</div>
                     </div>
                 </div>
             `;
@@ -318,6 +426,21 @@
             results.classList.remove('hidden');
             results.scrollIntoView({ behavior: 'smooth' });
         }
+
+        // Model selection handler
+        document.getElementById('modelSelect').addEventListener('change', async function() {
+            const selectedModel = this.value;
+            try {
+                const response = await fetch(`/models/select/${selectedModel}`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    console.log(`Switched to model: ${selectedModel}`);
+                }
+            } catch (error) {
+                console.error('Error switching model:', error);
+            }
+        });
 
         // Add some interactive animations
         document.querySelectorAll('input, select').forEach(element => {
@@ -328,6 +451,27 @@
             element.addEventListener('blur', function () {
                 this.parentElement.style.transform = 'scale(1)';
             });
+        });
+
+        // Pre-fill form with example data for testing
+        function fillExampleData() {
+            document.getElementById('billLength').value = 44.5;
+            document.getElementById('billDepth').value = 17.1;
+            document.getElementById('flipperLength').value = 200;
+            document.getElementById('bodyMass').value = 4200;
+            document.getElementById('sex').value = 'male';
+            document.getElementById('island').value = 'Biscoe';
+        }
+
+        // Add example data button (for testing)
+        window.addEventListener('load', function() {
+            const form = document.getElementById('predictionForm');
+            const exampleBtn = document.createElement('button');
+            exampleBtn.type = 'button';
+            exampleBtn.className = 'text-sm text-blue-600 hover:text-blue-800 underline mt-2';
+            exampleBtn.innerHTML = '📝 Fill with example data';
+            exampleBtn.onclick = fillExampleData;
+            form.appendChild(exampleBtn);
         });
     </script>
 </body>

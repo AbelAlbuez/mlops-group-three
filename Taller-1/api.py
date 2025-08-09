@@ -6,7 +6,9 @@ import json
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+from fastapi.staticfiles import StaticFiles
 
 # -------------------------------------------------------------------
 # Config
@@ -128,6 +130,14 @@ def startup():
 # -------------------------------------------------------------------
 # Endpoints
 # -------------------------------------------------------------------
+@app.get("/", response_class=HTMLResponse)
+def read_root():
+    """Serve the main HTML page."""
+    html_file = ROOT / "Static" / "index.html"
+    if not html_file.exists():
+        raise HTTPException(status_code=404, detail="HTML file not found")
+    return html_file.read_text(encoding="utf-8")
+
 @app.get("/health")
 def health():
     return {"status": "ok", "active_model": _current, "available": list(_loaded.keys())}
