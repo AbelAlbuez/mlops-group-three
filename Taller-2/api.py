@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+import os
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Path as FastAPIPath
@@ -182,4 +183,5 @@ async def predict_with_model(input_data: PenguinInput, model_name: str = FastAPI
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8888))
+    uvicorn.run(app, host="0.0.0.0", port=port)
