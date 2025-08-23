@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+    depends_on:
+      - trainer
+
+  trainer:
+    build: .
+    container_name: trainer_app
+    command: ["python", "train_models.py"]
+    volumes:
+      - ./models:/app/models
