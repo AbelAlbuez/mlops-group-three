@@ -1,0 +1,23 @@
+{
+  "classes": [
+    "setosa",
+    "versicolor",
+    "virginica"
+  ],
+  "feature_order": [
+    "bill_length_mm",
+    "bill_depth_mm",
+    "flipper_length_mm",
+    "body_mass_g"
+  ],
+  "models": {
+    "knn.pkl": {
+      "accuracy": 0.9333333333333333,
+      "f1_macro": 0.9326599326599326
+    },
+    "rf.pkl": {
+      "accuracy": 0.9,
+      "f1_macro": 0.899749373433584
+    }
+  }
+}
