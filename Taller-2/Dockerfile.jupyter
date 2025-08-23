@@ -1,0 +1,28 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copiar requirements y agregar jupyterlab
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir jupyterlab ipykernel
+
+# Copiar el código fuente
+COPY . .
+
+# Crear directorio para modelos
+RUN mkdir -p /app/models
+
+# Exponer puerto de Jupyter
+EXPOSE 8888
+
+# Configurar Jupyter sin token/password y permitir acceso root
+CMD ["jupyter", "lab", \
+     "--ip=0.0.0.0", \
+     "--port=8888", \
+     "--no-browser", \
+     "--allow-root", \
+     "--ServerApp.token=''", \
+     "--ServerApp.password=''", \
+     "--ServerApp.allow_origin='*'", \
+     "--ServerApp.disable_check_xsrf=True"]

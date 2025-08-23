@@ -18,6 +18,10 @@
     "rf.pkl": {
       "accuracy": 1.0,
       "f1_macro": 1.0
+    },
+    "svm.pkl": {
+      "accuracy": 1.0,
+      "f1_macro": 1.0
     }
   }
 }
