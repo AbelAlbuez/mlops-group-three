@@ -1,8 +1,8 @@
 {
   "classes": [
-    "setosa",
-    "versicolor",
-    "virginica"
+    "Adelie",
+    "Chinstrap",
+    "Gentoo"
   ],
   "feature_order": [
     "bill_length_mm",
@@ -12,12 +12,12 @@
   ],
   "models": {
     "knn.pkl": {
-      "accuracy": 0.9333333333333333,
-      "f1_macro": 0.9326599326599326
+      "accuracy": 1.0,
+      "f1_macro": 1.0
     },
     "rf.pkl": {
-      "accuracy": 0.9,
-      "f1_macro": 0.899749373433584
+      "accuracy": 1.0,
+      "f1_macro": 1.0
     }
   }
 }

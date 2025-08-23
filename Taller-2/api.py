@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import os
+import json
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Path as FastAPIPath
@@ -110,23 +111,40 @@ def prepare_input(input_data: PenguinInput, model) -> pd.DataFrame:
 
 def make_prediction(input_data: PenguinInput, model_name: str, model) -> Dict:
     df = prepare_input(input_data, model)
-    prediction = model.predict(df)[0]
-    
+    pred_idx = model.predict(df)[0]
+
+    # Cargar nombres de clases reales desde model_metadata.json
+    metadata_path = MODELS_DIR / "model_metadata.json"
+    if metadata_path.exists():
+        with open(metadata_path) as f:
+            meta = json.load(f)
+            classes_names = meta.get("classes", None)
+    else:
+        classes_names = None
+
+    # Mapear índice a nombre si hay metadata
+    if classes_names:
+        pred_name = classes_names[pred_idx]
+    else:
+        pred_name = str(pred_idx)  # fallback a número
+
     result = {
         "model": model_name,
-        "prediction": str(prediction)
+        "prediction": pred_name
     }
-    
-    # Add probabilities if available
+
+    # Agregar probabilidades con nombres reales si existen
     if hasattr(model, "predict_proba"):
         try:
             probs = model.predict_proba(df)[0]
-            classes = getattr(model, "classes_", None)
-            if classes is not None:
-                result["probabilities"] = dict(zip(map(str, classes), map(float, probs)))
+            if classes_names and len(classes_names) == len(probs):
+                prob_dict = {classes_names[i]: float(probs[i]) for i in range(len(classes_names))}
+            else:
+                prob_dict = {str(i): float(probs[i]) for i in range(len(probs))}
+            result["probabilities"] = prob_dict
         except Exception:
             pass
-    
+
     return result
 
 # API endpoints
