@@ -1,112 +1,31 @@
-# API de Predicción de Pingüinos - Taller 2
+# Taller 2 - Desarrollo en Contenedores
 
-Una aplicación FastAPI que entrena y expone modelos de machine learning para predecir especies de pingüinos.
+## Descripcion
+Aplicación contenedorizada que entrena y sirve modelos de clasificación de pingüinos. Se despliega con Docker Compose en dos servicios: una API en FastAPI y un entorno JupyterLab. Cumple con el enunciado "Desarrollo en contenedores" del curso (ver [instrucciones](https://github.com/CristianDiazAlvarez/MLOPS_PUJ/blob/main/Niveles/1/Desarollo_en_contenedores/README.md)).
 
-## 🚀 Flujo del Taller
-
-1. **Entrenamiento**: El script `train_models.py` entrena modelos (KNN y RandomForest) usando datos de pingüinos o Iris como fallback, y guarda los archivos `.pkl` en la carpeta `models/` junto con un `model_metadata.json` con métricas y metadatos.
-2. **API**: `api.py` carga automáticamente los modelos `.pkl` y expone endpoints REST para predicciones.
-3. **Contenedores**: `docker-compose.yml` levanta dos servicios:
-
-   * `trainer`: ejecuta `train_models.py` y guarda modelos en `/models`.
-   * `api`: levanta la API FastAPI consumiendo los modelos desde la misma carpeta compartida por volumen.
-
-## ⚙️ Características
-
-* **Carga dinámica de modelos**: detecta automáticamente todos los `.pkl` en `/models`.
-* **Múltiples endpoints**: salud, listado de modelos y predicción.
-* **Predicciones flexibles**: se puede predecir con todos los modelos o con uno específico.
-
-## 📡 Endpoints
-
-### GET /health
-
-Estado de la API y modelos cargados.
-
-### GET /models
-
-Lista de todos los modelos disponibles.
-
-### POST /predict
-
-Predicción usando **todos los modelos disponibles**.
-
-**Ejemplo de entrada:**
-
-```json
-{
-  "bill_length_mm": 44.5,
-  "bill_depth_mm": 17.1,
-  "flipper_length_mm": 200,
-  "body_mass_g": 4200
-}
-```
-
-### POST /predict/{model\_name}
-
-Predicción usando un modelo específico (ej. `/predict/rf` o `/predict/knn`).
-
-## 🛠️ Instalación local
-
-1. Crear entorno virtual:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-2. Instalar dependencias:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Entrenar modelos:
-
-```bash
-python train_models.py --out ./models
-```
-
-4. Ejecutar la API:
-
-```bash
-uvicorn api:app --reload --port 8000
-```
-
-5. Ver documentación en: [http://localhost:8000/docs](http://localhost:8000/docs)
-
-## 🐳 Uso con Docker Compose
-
-1. Construir e iniciar servicios:
-
+## Corriendo el proyecto
+- Requisitos: Docker y Docker Compose.
+- Construir e iniciar:
 ```bash
 docker compose up --build
 ```
+- URLs:
+  - API: http://localhost:8000/docs
+  - JupyterLab: http://localhost:8888
 
-2. Entrenar modelos desde el contenedor `trainer`:
+## Instruccion de uso 
+- Para crear los modelos hay que correr el archivo `train_from_jupyter.ipynb` en JupyterLab. Ahora cada modelo (KNN, Random Forest, SVM) se guarda inmediatamente después de entrenarse, por lo que puedes reentrenar y sobrescribir solo el modelo que necesites. Los artefactos se guardan en `models/` y la API los carga automáticamente.
+- Para predecir, usar la documentación interactiva de la API en `/docs` con los endpoints `/predict` o `/predict/{model}`.
 
-```bash
-docker compose exec trainer python train_models.py --out /app/models
-```
+## Servicios
+- API: Servicio FastAPI que carga modelos desde `models/` y expone endpoints en el puerto 8000.
+  - GET `/health`: estado de la API y número de modelos cargados.
+  - GET `/models`: lista de modelos disponibles (según archivos `.pkl` en `models/`).
+  - POST `/predict`: predice con todos los modelos disponibles.
+  - POST `/predict/{model_name}`: predice con un modelo específico (por ejemplo, `knn`, `rf`, `svm`).
+- JupyterLab: Entorno interactivo en el puerto 8888.
+  - Ejecuta `train_from_jupyter.ipynb` para entrenar y guardar modelos individualmente.
+  - La carpeta `models/` está montada como volumen compartido con la API.
+  - Consejos: puedes duplicar celdas para experimentar con hiperparámetros y volver a guardar el modelo objetivo sin afectar a los demás.
 
-3. Probar API en: [http://localhost:8000/docs](http://localhost:8000/docs)
-
-## 📊 Ejemplo de uso con cURL
-
-```bash
-curl -X POST "http://localhost:8000/predict/knn" \
-  -H "Content-Type: application/json" \
-  -d '{"bill_length_mm":44.5, "bill_depth_mm":17.1, "flipper_length_mm":200, "body_mass_g":4200}'
-```
-
-## 📋 Formato de datos
-
-* `bill_length_mm` (float, requerido)
-* `bill_depth_mm` (float, requerido)
-* `flipper_length_mm` (float, requerido)
-* `body_mass_g` (float, requerido)
-* `island` (opcional)
-* `sex` (opcional)
-* `year` (opcional)
-
----
+ 

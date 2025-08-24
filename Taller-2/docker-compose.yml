@@ -10,7 +10,6 @@ services:
       - ./models:/app/models
     environment:
       - PYTHONUNBUFFERED=1
-
   jupyter:
     build:
       context: .
