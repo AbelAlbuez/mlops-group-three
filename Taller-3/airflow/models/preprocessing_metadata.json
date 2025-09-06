@@ -1,0 +1,19 @@
+{
+  "rows_processed": 342,
+  "features": [
+    "bill_length_mm",
+    "bill_depth_mm",
+    "flipper_length_mm",
+    "body_mass_g"
+  ],
+  "species_mapping": {
+    "0": "Adelie",
+    "1": "Chinstrap",
+    "2": "Gentoo"
+  },
+  "label_encoder_classes": [
+    "Adelie",
+    "Chinstrap",
+    "Gentoo"
+  ]
+}

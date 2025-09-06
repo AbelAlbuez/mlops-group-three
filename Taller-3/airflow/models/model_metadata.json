@@ -1,27 +1,42 @@
 {
-  "classes": [
-    "Adelie",
-    "Chinstrap",
-    "Gentoo"
-  ],
-  "feature_order": [
+  "training_date": "2025-09-06T23:15:05.129526",
+  "features": [
     "bill_length_mm",
     "bill_depth_mm",
     "flipper_length_mm",
     "body_mass_g"
   ],
+  "classes": [
+    "Adelie",
+    "Chinstrap",
+    "Gentoo"
+  ],
+  "species_mapping": {
+    "0": "Adelie",
+    "1": "Chinstrap",
+    "2": "Gentoo"
+  },
   "models": {
-    "knn.pkl": {
+    "knn": {
       "accuracy": 1.0,
-      "f1_macro": 1.0
+      "f1_score": 1.0,
+      "model_path": "knn.pkl"
     },
-    "rf.pkl": {
+    "rf": {
       "accuracy": 1.0,
-      "f1_macro": 1.0
+      "f1_score": 1.0,
+      "model_path": "rf.pkl"
     },
-    "svm.pkl": {
+    "svm": {
       "accuracy": 1.0,
-      "f1_macro": 1.0
+      "f1_score": 1.0,
+      "model_path": "svm.pkl"
     }
+  },
+  "best_model": "knn",
+  "dataset_info": {
+    "total_samples": 342,
+    "train_samples": 273,
+    "test_samples": 69
   }
 }

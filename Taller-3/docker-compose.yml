@@ -18,6 +18,8 @@ x-airflow-common: &airflow-common
     MYSQL_USER: ${MYSQL_USER}
     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     MYSQL_DATABASE: ${MYSQL_DATABASE}
+    # Instalar dependencias Python adicionales
+    _PIP_ADDITIONAL_REQUIREMENTS: pandas numpy scikit-learn joblib pymysql sqlalchemy palmerpenguins seaborn
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
@@ -25,7 +27,7 @@ x-airflow-common: &airflow-common
     - ./airflow/models:/opt/airflow/models
     - ./airflow/models_tf:/opt/airflow/models_tf
     - ./airflow/requirements.txt:/opt/airflow/requirements.txt
-  user: "${AIRFLOW_UID:-50000}:0"
+  user: "${AIRFLOW_UID:-50000}:0" 
   depends_on: &airflow-common-depends-on
     redis:
       condition: service_healthy
@@ -174,8 +176,7 @@ services:
       _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER}
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
       _AIRFLOW_WWW_USER_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
-      _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-pandas numpy scikit-learn joblib pymysql sqlalchemy palmerpenguins seaborn tensorflow}
-    user: "0:0"
+    user: "${AIRFLOW_UID:-50000}:0" 
     volumes:
       - ./airflow:/sources
 
@@ -206,7 +207,6 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Volúmenes compartidos con Airflow para modelos
       - ./airflow/models:/app/models:ro
       - ./airflow/models_tf:/app/models_tf:ro
     environment:
@@ -223,8 +223,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - default
 
 # Volúmenes persistentes
 volumes:
