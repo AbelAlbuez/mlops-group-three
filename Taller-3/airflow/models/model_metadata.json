@@ -1,0 +1,27 @@
+{
+  "classes": [
+    "Adelie",
+    "Chinstrap",
+    "Gentoo"
+  ],
+  "feature_order": [
+    "bill_length_mm",
+    "bill_depth_mm",
+    "flipper_length_mm",
+    "body_mass_g"
+  ],
+  "models": {
+    "knn.pkl": {
+      "accuracy": 1.0,
+      "f1_macro": 1.0
+    },
+    "rf.pkl": {
+      "accuracy": 1.0,
+      "f1_macro": 1.0
+    },
+    "svm.pkl": {
+      "accuracy": 1.0,
+      "f1_macro": 1.0
+    }
+  }
+}

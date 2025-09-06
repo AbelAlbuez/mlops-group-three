@@ -1,0 +1,6 @@
+# requirements-local.txt
+# Dependencias mínimas para configurar el proyecto localmente
+# NO instalar docker-compose via pip, usar el que viene con Docker Desktop
+
+cryptography>=41.0.0
+python-dotenv>=1.0.0
