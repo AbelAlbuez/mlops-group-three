@@ -108,7 +108,16 @@ docker compose up --build
 ---
 ## ⚡Ejecución del DAG
 - Crear una nueva conexión `mysql_penguins` en `AirFlow > Admin > Connections`.
+  
   ![Connections](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/1_connections.png)
+- Se visualizan los 5 pasos definidos en el **DAG** que conforman el pipeline.
+
+  ![Pipeline](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/2_pipeline_graph.png)
+- Las tablas del esquema.
+
+  ![Schema](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/3_database_tables.png)
+
+
 ---
 
 ## 📡 Endpoints de la API
