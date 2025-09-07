@@ -106,6 +106,11 @@ docker compose up --build
 5. **validate_pipeline** → valida que todo se ejecutó correctamente.  
 
 ---
+## ⚡Ejecución del DAG
+- Crear una nueva conexión `mysql_penguins` en `AirFlow > Admin > Connections`
+  images/1_connections.png
+
+---
 
 ## 📡 Endpoints de la API
 - **GET /health** → estado de la API y modelos cargados.  
