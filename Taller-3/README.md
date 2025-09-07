@@ -116,7 +116,7 @@ docker compose up --build
 ```bash
 sudo mkdir -p ./airflow/models
 sudo chown -R 50000:0 ./airflow/models
-sudo chmod -R 775 ./airflow/models
+sudo chmod -R 775 ./airflow/models```
 
 - Se visualizan los 5 pasos definidos en el **DAG** que conforman el pipeline.
 
