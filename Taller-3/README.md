@@ -111,10 +111,12 @@ docker compose up --build
   
   ![Connections](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/1_connections.png)
 
-- Se dan permisos a la carpeta `models` en el proyecto de AirFlow
-`sudo mkdir -p ./airflow/models`
-`sudo chown -R 50000:0 ./airflow/models`
-`sudo chmod -R 775 ./airflow/models`
+- Se dan permisos a la carpeta `models` en el proyecto de Airflow:
+
+```bash
+sudo mkdir -p ./airflow/models
+sudo chown -R 50000:0 ./airflow/models
+sudo chmod -R 775 ./airflow/models
 
 - Se visualizan los 5 pasos definidos en el **DAG** que conforman el pipeline.
 
