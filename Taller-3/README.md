@@ -127,7 +127,7 @@ docker compose up --build
 
   ![Tables](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/4_tables_count.png)
 
-- **Se ejecuta el DAG**.
+- ✅**Se ejecuta el DAG**✅.
 - Se observa la ejecución correcta del Pipeline.
 
 ![PipelineOK](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/5_pipeline_graph_ok.png)
