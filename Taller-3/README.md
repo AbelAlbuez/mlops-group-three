@@ -108,7 +108,7 @@ docker compose up --build
 ---
 ## ⚡Ejecución del DAG
 - Crear una nueva conexión `mysql_penguins` en `AirFlow > Admin > Connections`
-  images/1_connections.png
+  ![Connections](images/diagrama.png)
 
 ---
 
