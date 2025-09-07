@@ -107,15 +107,52 @@ docker compose up --build
 
 ---
 ## ⚡Ejecución del DAG
-- Crear una nueva conexión `mysql_penguins` en `AirFlow > Admin > Connections`.
+- Se crea una nueva conexión `mysql_penguins` en `AirFlow > Admin > Connections`.
   
   ![Connections](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/1_connections.png)
+
+- Se dan permisos a la carpeta `models` en el proyecto de AirFlow
+`sudo mkdir -p ./airflow/models`
+`sudo chown -R 50000:0 ./airflow/models`
+`sudo chmod -R 775 ./airflow/models`
+
 - Se visualizan los 5 pasos definidos en el **DAG** que conforman el pipeline.
 
   ![Pipeline](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/2_pipeline_graph.png)
-- Las tablas del esquema.
+  
+- Las tablas que hacen parte del esquema.
 
   ![Schema](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/3_database_tables.png)
+
+- Las tablas vacias antes de la ejecución del **DAG**.
+
+  ![Tables](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/4_tables_count.png)
+
+- **Se ejecuta el DAG**.
+- Se observa la ejecución correcta del Pipeline.
+
+![PipelineOK](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/5_pipeline_graph_ok.png)
+
+- Tareas ejecutadas correctamente.
+
+![Task](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/6_succes_exec.png)
+
+- Calendario de ejecución
+
+![Calendar](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/7_calendar.png)
+
+- Las tablas ya muestran registros cargados.
+
+![Tables](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/8_table_count_2.png)
+
+- Las tablas ya muestran datos.
+
+![Tables2](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/9_tables.png)
+
+- Los modelos han sido actualizados.
+
+![Models](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/main/Taller-3/images/10_models.png)
+
 
 
 ---
