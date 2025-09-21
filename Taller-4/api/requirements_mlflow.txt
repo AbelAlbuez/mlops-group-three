@@ -1,0 +1,21 @@
+# FastAPI and server
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# MLflow
+mlflow>=2.8.0
+boto3>=1.28.0
+
+# Data processing
+pandas>=1.5.0
+numpy>=1.24.0
+
+# Machine Learning (para compatibilidad con modelos)
+scikit-learn>=1.3.0
+xgboost>=1.7.0
+lightgbm>=4.0.0
+
+# Additional utilities
+pydantic>=2.4.0
+python-dotenv>=1.0.0

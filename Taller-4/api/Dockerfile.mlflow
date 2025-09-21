@@ -1,0 +1,53 @@
+# Imagen base Python 3.11 slim
+FROM python:3.11-slim
+
+# Metadata
+LABEL maintainer="MLOps Team - Taller MLflow"
+LABEL description="API FastAPI para predicción con modelos desde MLflow"
+LABEL version="2.0"
+
+# Establecer directorio de trabajo
+WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar archivos de requisitos
+COPY requirements_mlflow.txt .
+
+# Instalar dependencias de Python
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements_mlflow.txt
+
+# Copiar archivos de la API
+COPY api_mlflow.py .
+COPY __init__.py .
+
+# Variable de entorno para Python sin buffer (logs en tiempo real)
+ENV PYTHONUNBUFFERED=1
+
+# Configurar variables de entorno por defecto
+ENV PORT=8000
+ENV MLFLOW_TRACKING_URI=http://mlflow:5000
+
+# Usuario no root por seguridad
+RUN groupadd -r apiuser && useradd -r -g apiuser apiuser && \
+    chown -R apiuser:apiuser /app
+
+# Cambiar al usuario no root
+USER apiuser
+
+# Exponer puerto de la API
+EXPOSE 8000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Comando por defecto
+CMD ["uvicorn", "api_mlflow:app", "--host", "0.0.0.0", "--port", "8000"]

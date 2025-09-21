@@ -1,0 +1,180 @@
+services:
+  # MinIO - Almacenamiento de objetos S3-compatible
+  minio:
+    image: minio/minio:latest
+    container_name: mlflow-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-supersecret}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"  # API S3
+      - "9001:9001"  # Consola Web
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 20s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mlflow-network
+    restart: unless-stopped
+
+  # MySQL para metadatos
+  mysql:
+    image: mysql:8.0
+    container_name: mlflow-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_USER: ${MYSQL_USER:-penguins}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-penguins123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-penguins_db}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init-mlflow.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/02-penguins.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - mlflow-network
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Cliente MinIO para crear bucket inicial
+  minio-client:
+    image: minio/mc:latest
+    container_name: mlflow-minio-client
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-supersecret}
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Esperando 15 segundos para que MinIO esté completamente listo...';
+      sleep 15;
+      echo 'Configurando cliente MinIO...';
+      mc config host add myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      echo 'Creando bucket mlflows3...';
+      mc mb myminio/mlflows3 --ignore-existing;
+      mc anonymous set download myminio/mlflows3;
+      echo 'Bucket mlflows3 creado exitosamente';
+      mc ls myminio/;
+      echo 'Configuración de MinIO completada';
+      "
+    networks:
+      - mlflow-network
+
+  # JupyterLab para experimentos
+  jupyterlab:
+    build:
+      context: ./jupyter
+      dockerfile: Dockerfile
+    container_name: mlflow-jupyter
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-mlflow2024}
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-supersecret}
+      - AWS_DEFAULT_REGION=us-east-1
+      - MLFLOW_S3_IGNORE_TLS=true
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER:-penguins}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-penguins123}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-penguins_db}
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./data:/home/jovyan/data
+    ports:
+      - "8888:8888"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - mlflow-network
+    restart: unless-stopped
+
+  # MLflow Server
+  mlflow:
+    build:
+      context: ./mlflow
+      dockerfile: Dockerfile
+    container_name: mlflow-server
+    environment:
+      - BACKEND_STORE_URI=mysql+pymysql://${MYSQL_USER:-penguins}:${MYSQL_PASSWORD:-penguins123}@mysql:3306/mlflow_meta
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-supersecret}
+      - AWS_DEFAULT_REGION=us-east-1
+      - MLFLOW_S3_IGNORE_TLS=true
+    ports:
+      - "5001:5000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-client:
+        condition: service_completed_successfully
+    networks:
+      - mlflow-network
+    restart: unless-stopped
+    command: >
+      sh -c "
+      echo 'Esperando 20 segundos para asegurar que el bucket esté listo...';
+      sleep 20;
+      echo 'Iniciando servidor MLflow...';
+      mlflow server
+      --backend-store-uri mysql+pymysql://${MYSQL_USER:-penguins}:${MYSQL_PASSWORD:-penguins123}@mysql:3306/mlflow_meta
+      --default-artifact-root s3://mlflows3/artifacts
+      --host 0.0.0.0
+      --port 5000
+      --serve-artifacts
+      "
+
+  # API de inferencia con MLflow
+  api-mlflow:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.mlflow
+    container_name: mlflow-api
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-supersecret}
+      - AWS_DEFAULT_REGION=us-east-1
+      - MLFLOW_S3_IGNORE_TLS=true
+    ports:
+      - "8000:8000"
+    depends_on:
+      mlflow:
+        condition: service_started
+    networks:
+      - mlflow-network
+    restart: unless-stopped
+
+volumes:
+  minio_data:
+    driver: local
+  mysql_data:
+    driver: local
+
+networks:
+  mlflow-network:
+    driver: bridge

@@ -1,0 +1,32 @@
+[Unit]
+Description=MLflow Tracking Server
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=mlflow
+Group=mlflow
+WorkingDirectory=/opt/mlflow
+Environment="PATH=/opt/mlflow/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="MLFLOW_S3_ENDPOINT_URL=http://localhost:9000"
+Environment="AWS_ACCESS_KEY_ID=admin"
+Environment="AWS_SECRET_ACCESS_KEY=supersecret"
+
+# Comando principal
+ExecStart=/opt/mlflow/venv/bin/python -m mlflow server \
+  --backend-store-uri 'mysql+pymysql://penguins:penguins123@localhost:3306/mlflow_meta' \
+  --default-artifact-root 's3://mlflows3/artifacts' \
+  --host 0.0.0.0 \
+  --port 5000 \
+  --serve-artifacts
+
+# Reiniciar si falla
+Restart=on-failure
+RestartSec=30
+
+# Logs
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
