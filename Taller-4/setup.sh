@@ -60,9 +60,51 @@ for i in {1..30}; do
     sleep 2
 done
 
+# Esperar a que MinIO esté listo
+echo -n "🔍 Verificando MinIO"
+for i in {1..30}; do
+    if docker exec mlflow-minio curl -f http://localhost:9000/minio/health/ready &>/dev/null; then
+        echo " ✅"
+        break
+    fi
+    echo -n "."
+    sleep 2
+done
+
+# Verificar y crear bucket si es necesario
+echo -n "🪣 Verificando bucket mlflows3"
+sleep 5  # Dar tiempo extra para que MinIO esté completamente listo
+
+# Intentar crear el bucket varias veces
+for i in {1..5}; do
+    if docker exec mlflow-minio mc config host add myminio http://localhost:9000 admin supersecret &>/dev/null; then
+        if docker exec mlflow-minio mc mb myminio/mlflows3 --ignore-existing &>/dev/null; then
+            docker exec mlflow-minio mc anonymous set download myminio/mlflows3 &>/dev/null
+            echo " ✅"
+            break
+        fi
+    fi
+    echo -n "."
+    sleep 3
+done
+
+# Verificar que el bucket existe
+if ! docker exec mlflow-minio mc ls myminio/mlflows3 &>/dev/null; then
+    echo ""
+    echo "⚠️  Advertencia: El bucket mlflows3 no se pudo crear automáticamente."
+    echo "   Intenta crearlo manualmente con:"
+    echo "   docker exec mlflow-minio mc mb myminio/mlflows3"
+    echo "   docker exec mlflow-minio mc anonymous set download myminio/mlflows3"
+fi
+
+# Reiniciar MLflow server para asegurar que ve el bucket
+echo -n "🔄 Reiniciando MLflow server"
+docker restart mlflow-server &>/dev/null
+echo " ✅"
+
 # Esperar un poco más para que todos los servicios estén listos
 echo -n "⏳ Finalizando inicialización"
-for i in {1..30}; do
+for i in {1..20}; do
     echo -n "."
     sleep 1
 done
@@ -108,7 +150,7 @@ echo "   - JupyterLab: http://localhost:8888 (token: mlflow2024)"
 echo "   - API Docs: http://localhost:8000/docs"
 echo ""
 echo "📝 Próximos pasos:"
-echo "   1. Espera 1-2 minutos adicionales si algún servicio muestra 'iniciándose'"
+echo "   1. Verifica que el bucket mlflows3 existe en MinIO Console"
 echo "   2. Abre JupyterLab en http://localhost:8888"
 echo "   3. Ejecuta el notebook experiments.ipynb"
 echo "   4. Verifica los experimentos en MLflow UI"
@@ -117,4 +159,5 @@ echo "💡 Comandos útiles:"
 echo "   Ver logs: $DOCKER_COMPOSE -f docker-compose.mlflow.yml logs -f"
 echo "   Ver logs de un servicio: docker logs -f <nombre-contenedor>"
 echo "   Verificar servicios: ./test_services.sh"
+echo "   Crear bucket manualmente: docker exec mlflow-minio mc mb myminio/mlflows3"
 echo ""

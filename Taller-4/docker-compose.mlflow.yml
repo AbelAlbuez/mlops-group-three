@@ -1,27 +1,4 @@
 services:
-  # MinIO - Almacenamiento de objetos S3-compatible
-  minio:
-    image: minio/minio:latest
-    container_name: mlflow-minio
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-supersecret}
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9000:9000"  # API S3
-      - "9001:9001"  # Consola Web
-    command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 20s
-      retries: 5
-      start_period: 10s
-    networks:
-      - mlflow-network
-    restart: unless-stopped
-
   # MySQL para metadatos
   mysql:
     image: mysql:8.0
@@ -38,7 +15,7 @@ services:
     ports:
       - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -48,10 +25,34 @@ services:
     restart: unless-stopped
     command: --default-authentication-plugin=mysql_native_password
 
-  # Cliente MinIO para crear bucket inicial
-  minio-client:
+  # MinIO - Almacenamiento de objetos S3-compatible
+  minio:
+    image: minio/minio:latest
+    container_name: mlflow-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-supersecret}
+      MINIO_DEFAULT_BUCKETS: mlflows3
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"  # API S3
+      - "9001:9001"  # Consola Web
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 20s
+      retries: 10
+      start_period: 30s
+    networks:
+      - mlflow-network
+    restart: unless-stopped
+
+  # Inicializador de MinIO - crea bucket y configura permisos
+  minio-init:
     image: minio/mc:latest
-    container_name: mlflow-minio-client
+    container_name: mlflow-minio-init
     depends_on:
       minio:
         condition: service_healthy
@@ -60,19 +61,26 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-supersecret}
     entrypoint: >
       /bin/sh -c "
-      echo 'Esperando 15 segundos para que MinIO esté completamente listo...';
-      sleep 15;
+      echo 'Esperando que MinIO esté completamente listo...';
+      sleep 10;
       echo 'Configurando cliente MinIO...';
       mc config host add myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      echo 'Verificando configuración...';
+      mc admin info myminio;
       echo 'Creando bucket mlflows3...';
-      mc mb myminio/mlflows3 --ignore-existing;
-      mc anonymous set download myminio/mlflows3;
-      echo 'Bucket mlflows3 creado exitosamente';
+      mc mb myminio/mlflows3 --ignore-existing || true;
+      echo 'Configurando políticas de acceso...';
+      mc anonymous set download myminio/mlflows3 || true;
+      mc anonymous set public myminio/mlflows3 || true;
+      echo 'Verificando bucket...';
       mc ls myminio/;
+      mc stat myminio/mlflows3 || echo 'Error verificando bucket';
       echo 'Configuración de MinIO completada';
+      exit 0
       "
     networks:
       - mlflow-network
+    restart: on-failure
 
   # JupyterLab para experimentos
   jupyterlab:
@@ -104,6 +112,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     networks:
       - mlflow-network
     restart: unless-stopped
@@ -121,6 +131,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-supersecret}
       - AWS_DEFAULT_REGION=us-east-1
       - MLFLOW_S3_IGNORE_TLS=true
+      - MLFLOW_ARTIFACTS_DESTINATION=s3://mlflows3/artifacts
     ports:
       - "5001:5000"
     depends_on:
@@ -128,19 +139,26 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      minio-client:
+      minio-init:
         condition: service_completed_successfully
     networks:
       - mlflow-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     command: >
       sh -c "
-      echo 'Esperando 20 segundos para asegurar que el bucket esté listo...';
-      sleep 20;
+      echo 'Esperando 15 segundos adicionales para asegurar que el bucket esté listo...';
+      sleep 15;
       echo 'Iniciando servidor MLflow...';
       mlflow server
       --backend-store-uri mysql+pymysql://${MYSQL_USER:-penguins}:${MYSQL_PASSWORD:-penguins123}@mysql:3306/mlflow_meta
       --default-artifact-root s3://mlflows3/artifacts
+      --artifacts-destination s3://mlflows3/artifacts
       --host 0.0.0.0
       --port 5000
       --serve-artifacts
@@ -164,7 +182,7 @@ services:
       - "8000:8000"
     depends_on:
       mlflow:
-        condition: service_started
+        condition: service_healthy
     networks:
       - mlflow-network
     restart: unless-stopped

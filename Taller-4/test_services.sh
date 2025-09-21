@@ -134,3 +134,23 @@ fi
 
 # Limpiar archivo temporal
 rm -f /tmp/mlflow_test_$$.log
+
+
+# Agregar verificación específica del bucket
+echo "🪣 Verificando MinIO y Bucket:"
+printf "%-20s" "MinIO Health:"
+if docker exec mlflow-minio curl -f http://localhost:9000/minio/health/ready &>/dev/null; then
+    echo -e "${GREEN}✔ Healthy${NC}"
+else
+    echo -e "${RED}✗ Not healthy${NC}"
+fi
+
+printf "%-20s" "Bucket mlflows3:"
+if docker exec mlflow-minio mc ls myminio/mlflows3 &>/dev/null; then
+    echo -e "${GREEN}✔ Exists${NC}"
+else
+    echo -e "${RED}✗ Not found${NC}"
+    echo "   Intentando crear bucket..."
+    docker exec mlflow-minio mc mb myminio/mlflows3 --ignore-existing
+    docker exec mlflow-minio mc anonymous set download myminio/mlflows3
+fi
