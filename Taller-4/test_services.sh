@@ -20,7 +20,7 @@ check_service() {
     response=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null)
     
     if [ "$response" = "$expected_code" ]; then
-        echo -e "${GREEN}✓ OK${NC} (HTTP $response)"
+        echo -e "${GREEN}✔ OK${NC} (HTTP $response)"
         return 0
     else
         echo -e "${RED}✗ FAIL${NC} (HTTP $response)"
@@ -35,7 +35,7 @@ check_container() {
     printf "%-20s" "$name:"
     
     if docker ps --format '{{.Names}}' | grep -q "^$name$"; then
-        echo -e "${GREEN}✓ Running${NC}"
+        echo -e "${GREEN}✔ Running${NC}"
         return 0
     else
         echo -e "${RED}✗ Not running${NC}"
@@ -54,31 +54,31 @@ echo ""
 
 # Verificar servicios HTTP
 echo "🌐 Verificando servicios HTTP:"
-check_service "MinIO Console" "http://localhost:9001" 403
-check_service "MinIO API" "http://localhost:9000" 403
-check_service "MLflow UI" "http://localhost:5000"
-check_service "JupyterLab" "http://localhost:8888"
-check_service "API Health" "http://localhost:8000/health"
-check_service "API Docs" "http://localhost:8000/docs"
+check_service "MinIO Console" "http://localhost:7001" 403
+check_service "MinIO API" "http://localhost:7000" 403
+check_service "MLflow UI" "http://localhost:5001"
+check_service "JupyterLab" "http://localhost:7888"
+check_service "API Health" "http://localhost:7800/health"
+check_service "API Docs" "http://localhost:7800/docs"
 echo ""
 
 # Verificar conectividad MySQL
 echo "🗄️ Verificando MySQL:"
 printf "%-20s" "MySQL Connection:"
 if docker exec mlflow-mysql mysql -u penguins -ppenguins123 -e "SELECT 1" >/dev/null 2>&1; then
-    echo -e "${GREEN}✓ OK${NC}"
+    echo -e "${GREEN}✔ OK${NC}"
     
     # Verificar bases de datos
     printf "%-20s" "Database penguins_db:"
     if docker exec mlflow-mysql mysql -u penguins -ppenguins123 -e "USE penguins_db" >/dev/null 2>&1; then
-        echo -e "${GREEN}✓ Exists${NC}"
+        echo -e "${GREEN}✔ Exists${NC}"
     else
         echo -e "${RED}✗ Not found${NC}"
     fi
     
     printf "%-20s" "Database mlflow_meta:"
     if docker exec mlflow-mysql mysql -u penguins -ppenguins123 -e "USE mlflow_meta" >/dev/null 2>&1; then
-        echo -e "${GREEN}✓ Exists${NC}"
+        echo -e "${GREEN}✔ Exists${NC}"
     else
         echo -e "${RED}✗ Not found${NC}"
     fi
@@ -91,7 +91,7 @@ echo ""
 echo "🪣 Verificando MinIO:"
 printf "%-20s" "Bucket mlflows3:"
 if docker exec mlflow-minio mc ls myminio/mlflows3 >/dev/null 2>&1; then
-    echo -e "${GREEN}✓ Exists${NC}"
+    echo -e "${GREEN}✔ Exists${NC}"
 else
     echo -e "${RED}✗ Not found${NC}"
 fi
@@ -102,7 +102,7 @@ echo "🧪 Test de API de predicción:"
 printf "%-20s" "POST /predict:"
 
 # Hacer request de prueba
-response=$(curl -s -X POST "http://localhost:8000/predict" \
+response=$(curl -s -X POST "http://localhost:7800/predict" \
   -H "Content-Type: application/json" \
   -d '{
     "bill_length_mm": 44.5,
@@ -112,7 +112,7 @@ response=$(curl -s -X POST "http://localhost:8000/predict" \
   }' 2>/dev/null)
 
 if echo "$response" | grep -q "predictions"; then
-    echo -e "${GREEN}✓ Working${NC}"
+    echo -e "${GREEN}✔ Working${NC}"
     echo "   Response: $(echo $response | jq -r '.predictions[0].prediction' 2>/dev/null || echo 'Parse error')"
 else
     echo -e "${RED}✗ Failed${NC}"
@@ -123,7 +123,7 @@ echo ""
 # Resumen
 echo "📊 Resumen:"
 total_checks=12
-passed_checks=$(grep -c "✓" /tmp/mlflow_test_$$.log 2>/dev/null || echo 0)
+passed_checks=$(grep -c "✔" /tmp/mlflow_test_$$.log 2>/dev/null || echo 0)
 
 if [ "$total_checks" -eq "$passed_checks" ]; then
     echo -e "${GREEN}✅ Todos los servicios están funcionando correctamente${NC}"
@@ -154,3 +154,10 @@ else
     docker exec mlflow-minio mc mb myminio/mlflows3 --ignore-existing
     docker exec mlflow-minio mc anonymous set download myminio/mlflows3
 fi
+
+echo ""
+echo "🌐 URLs de acceso (PUERTOS ACTUALIZADOS):"
+echo "   - MinIO Console: http://localhost:7001 (admin/supersecret)"
+echo "   - MLflow UI: http://localhost:5001"
+echo "   - JupyterLab: http://localhost:7888 (token: mlflow2024)"
+echo "   - API Docs: http://localhost:7800/docs"
