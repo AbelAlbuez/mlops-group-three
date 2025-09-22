@@ -18,8 +18,14 @@ x-airflow-common: &airflow-common
     MYSQL_USER: ${MYSQL_USER}
     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     MYSQL_DATABASE: ${MYSQL_DATABASE}
+    # Variables para conexión MySQL MLFlow
+    MLFLOW_MYSQL_HOST: mysql-mlflow
+    MLFLOW_MYSQL_PORT: 3306
+    MLFLOW_MYSQL_USER: ${MLFLOW_MYSQL_USER:-mlflow_user}
+    MLFLOW_MYSQL_PASSWORD: ${MLFLOW_MYSQL_PASSWORD:-mlflow_pass123}
+    MLFLOW_MYSQL_DATABASE: ${MLFLOW_MYSQL_DATABASE:-mlflow_meta}
     # Instalar dependencias Python adicionales
-    _PIP_ADDITIONAL_REQUIREMENTS: pandas numpy scikit-learn joblib pymysql sqlalchemy palmerpenguins seaborn
+    _PIP_ADDITIONAL_REQUIREMENTS: pandas numpy scikit-learn joblib pymysql sqlalchemy palmerpenguins seaborn mlflow
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
@@ -34,6 +40,8 @@ x-airflow-common: &airflow-common
     postgres:
       condition: service_healthy
     mysql:
+      condition: service_healthy
+    mysql-mlflow:
       condition: service_healthy
 
 services:
@@ -74,6 +82,27 @@ services:
     restart: always
     ports:
       - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Base de datos MySQL dedicada para MLFlow
+  mysql-mlflow:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MLFLOW_MYSQL_ROOT_PASSWORD:-mlflow_root123}
+      MYSQL_USER: ${MLFLOW_MYSQL_USER:-mlflow_user}
+      MYSQL_PASSWORD: ${MLFLOW_MYSQL_PASSWORD:-mlflow_pass123}
+      MYSQL_DATABASE: ${MLFLOW_MYSQL_DATABASE:-mlflow_meta}
+    volumes:
+      - mlflow_mysqldata:/var/lib/mysql
+      - ./mysql/init-mlflow.sql:/docker-entrypoint-initdb.d/init-mlflow.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MLFLOW_MYSQL_ROOT_PASSWORD:-mlflow_root123}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    ports:
+      - "3307:3306"
     command: --default-authentication-plugin=mysql_native_password
 
   # Redis para Celery
@@ -198,6 +227,44 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  # MLflow Server
+  mlflow:
+    build:
+      context: ./mlflow
+      dockerfile: Dockerfile
+    container_name: mlflow-server
+    environment:
+      - BACKEND_STORE_URI=mysql+pymysql://${MLFLOW_MYSQL_USER:-mlflow_user}:${MLFLOW_MYSQL_PASSWORD:-mlflow_pass123}@mysql-mlflow:3306/${MLFLOW_MYSQL_DATABASE:-mlflow_meta}
+      - MLFLOW_ARTIFACTS_DESTINATION=/mlflow/artifacts
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./airflow/models:/mlflow/models
+      - mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      mysql-mlflow:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    command: >
+      sh -c "
+      echo 'Esperando base de datos MLFlow...';
+      sleep 10;
+      echo 'Iniciando servidor MLflow...';
+      mlflow server
+      --backend-store-uri mysql+pymysql://${MLFLOW_MYSQL_USER:-mlflow_user}:${MLFLOW_MYSQL_PASSWORD:-mlflow_pass123}@mysql-mlflow:3306/${MLFLOW_MYSQL_DATABASE:-mlflow_meta}
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+      --serve-artifacts
+      "
+
   # API de inferencia FastAPI
   api:
     build:
@@ -213,8 +280,13 @@ services:
       - PYTHONUNBUFFERED=1
       - MODEL_PATH=/app/models
       - MODEL_TF_PATH=/app/models_tf
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
     depends_on:
       mysql:
+        condition: service_healthy
+      mysql-mlflow:
+        condition: service_healthy
+      mlflow:
         condition: service_healthy
     restart: always
     healthcheck:
@@ -229,6 +301,10 @@ volumes:
   pgdata:
     driver: local
   mysqldata:
+    driver: local
+  mlflow_mysqldata:
+    driver: local
+  mlflow_artifacts:
     driver: local
   airflow_logs:
     driver: local
