@@ -133,7 +133,7 @@ check_service() {
 echo ""
 echo "🔍 Verificando servicios..."
 check_service "MySQL" 3306
-check_service "MinIO API" 8002
+check_service "MinIO API" 8006
 check_service "MinIO Console" 8003
 check_service "MLflow" 8001
 check_service "JupyterLab" 8004

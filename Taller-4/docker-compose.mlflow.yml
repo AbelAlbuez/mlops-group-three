@@ -36,7 +36,7 @@ services:
     volumes:
       - minio_data:/data
     ports:
-      - "8002:9000"
+      - "8006:9000"
       - "8003:9001"
     command: server /data --console-address ":9001"
     healthcheck:
