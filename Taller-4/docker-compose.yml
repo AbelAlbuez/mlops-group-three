@@ -214,7 +214,7 @@ services:
     <<: *airflow-common
     command: celery flower
     ports:
-      - "5555:5555"
+      - "8006:5555"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
       interval: 30s
@@ -238,7 +238,7 @@ services:
       - MLFLOW_ARTIFACTS_DESTINATION=/mlflow/artifacts
       - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
     ports:
-      - "5000:5000"
+      - "8001:5000"
     volumes:
       - ./airflow/models:/mlflow/models
       - mlflow_artifacts:/mlflow/artifacts

@@ -36,8 +36,8 @@ services:
     volumes:
       - minio_data:/data
     ports:
-      - "6900:9000"
-      - "6901:9001"
+      - "8002:9000"
+      - "8003:9001"
     command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
@@ -106,7 +106,7 @@ services:
       - ./notebooks:/home/jovyan/work
       - ./data:/home/jovyan/data
     ports:
-      - "7888:8888"
+      - "8004:8888"
     depends_on:
       mysql:
         condition: service_healthy
@@ -133,7 +133,7 @@ services:
       - MLFLOW_S3_IGNORE_TLS=true
       - MLFLOW_ARTIFACTS_DESTINATION=s3://mlflows3/artifacts
     ports:
-      - "5001:5000"
+      - "8001:5000"
     depends_on:
       mysql:
         condition: service_healthy
@@ -179,7 +179,7 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
       - MLFLOW_S3_IGNORE_TLS=true
     ports:
-      - "7800:8000"
+      - "8005:8000"
     depends_on:
       mlflow:
         condition: service_healthy

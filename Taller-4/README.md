@@ -21,12 +21,12 @@ graph TB
     end
     
     subgraph "Capa MLOps"
-        MLflow[MLflow Server<br/>:5001]
-        Jupyter[JupyterLab<br/>:7888]
+        MLflow[MLflow Server<br/>:8001]
+        Jupyter[JupyterLab<br/>:8004]
     end
     
     subgraph "Capa de Servicio"
-        API[FastAPI<br/>:7800]
+        API[FastAPI<br/>:8005]
     end
     
     subgraph "Usuario"
@@ -44,9 +44,9 @@ graph TB
 
 ## 🛠️ Componentes
 
-### 1. **MinIO** (Puertos 6900/6901)
-- API S3: Puerto 6900
-- Consola Web: Puerto 6901
+### 1. **MinIO** (Puertos 8002/8003)
+- API S3: Puerto 8002
+- Consola Web: Puerto 8003
 - Almacenamiento S3-compatible para artefactos
 - Bucket automático: `mlflows3`
 - Credenciales: admin/supersecret
@@ -56,17 +56,17 @@ graph TB
 - Base de datos `mlflow_meta`: metadatos de MLflow
 - Tablas: `penguins_raw`, `penguins_clean`, `model_metrics`
 
-### 3. **MLflow** (Puerto 5001)
+### 3. **MLflow** (Puerto 8001)
 - Tracking de experimentos
 - Model Registry
 - Gestión de artefactos
 
-### 4. **JupyterLab** (Puerto 7888)
+### 4. **JupyterLab** (Puerto 8004)
 - Desarrollo y experimentación
 - Notebook con 25+ experimentos
 - Token: mlflow2024
 
-### 5. **API REST** (Puerto 7800)
+### 5. **API REST** (Puerto 8005)
 - Inferencia en tiempo real
 - Carga modelos desde MLflow Registry
 - Documentación Swagger automática
@@ -78,7 +78,7 @@ graph TB
 - **Docker Compose**: versión 2.0+
 - **Memoria RAM**: 8GB mínimo
 - **Espacio en disco**: 10GB libre
-- **Puertos libres**: 3306, 5001, 6900, 6901, 7888, 7800
+- **Puertos libres**: 3306, 8001, 8002, 8003, 8004, 8005
 
 ## 🚀 Instalación y Uso
 
@@ -110,7 +110,7 @@ El script levantará todos los servicios automáticamente. Espera aproximadament
 ## 📋 Flujo de Trabajo
 
 ### 1. Desarrollo de Experimentos
-1. Acceder a JupyterLab: http://localhost:7888 (token: mlflow2024)
+1. Acceder a JupyterLab: http://localhost:8004 (token: mlflow2024)
 2. Abrir `work/experiments.ipynb`
 3. Ejecutar todas las celdas (Cell → Run All)
 4. El notebook realizará:
@@ -120,7 +120,7 @@ El script levantará todos los servicios automáticamente. Espera aproximadament
    - Registro del mejor modelo
 
 ### 2. Visualización en MLflow
-1. Acceder a MLflow UI: http://localhost:5001
+1. Acceder a MLflow UI: http://localhost:8001
 2. Ver experimento "penguins-classification"
 3. Comparar métricas entre runs
 4. Revisar el modelo en Model Registry
@@ -128,13 +128,13 @@ El script levantará todos los servicios automáticamente. Espera aproximadament
 ### 3. Servir Predicciones
 ```bash
 # Endpoint de health
-curl http://localhost:7800/health
+curl http://localhost:8005/health
 
 # Listar modelos disponibles
-curl http://localhost:7800/models
+curl http://localhost:8005/models
 
 # Hacer predicción
-curl -X POST "http://localhost:7800/predict" \
+curl -X POST "http://localhost:8005/predict" \
   -H "Content-Type: application/json" \
   -d '{
     "bill_length_mm": 44.5,
@@ -239,8 +239,8 @@ docker exec -it mlflow-jupyter bash
 ### Puerto en uso
 Si aparece "bind: address already in use":
 ```bash
-# Verificar qué usa el puerto (ej: 6900)
-sudo lsof -i :6900
+# Verificar qué usa el puerto (ej: 8002)
+sudo lsof -i :8002
 # Matar el proceso o cambiar puerto en docker-compose.mlflow.yml
 ```
 

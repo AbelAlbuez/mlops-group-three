@@ -133,25 +133,25 @@ check_service() {
 echo ""
 echo "🔍 Verificando servicios..."
 check_service "MySQL" 3306
-check_service "MinIO API" 6900
-check_service "MinIO Console" 6901
-check_service "MLflow" 5001
-check_service "JupyterLab" 7888
-check_service "API" 7800
+check_service "MinIO API" 8002
+check_service "MinIO Console" 8003
+check_service "MLflow" 8001
+check_service "JupyterLab" 8004
+check_service "API" 8005
 
 # Mostrar URLs de acceso - PUERTOS ACTUALIZADOS
 echo ""
 echo "✅ Instalación completada!"
 echo ""
 echo "🌐 URLs de acceso:"
-echo "   - MinIO Console: http://localhost:6901 (admin/supersecret)"
-echo "   - MLflow UI: http://localhost:5001"
-echo "   - JupyterLab: http://localhost:7888 (token: mlflow2024)"
-echo "   - API Docs: http://localhost:7800/docs"
+echo "   - MinIO Console: http://localhost:8003 (admin/supersecret)"
+echo "   - MLflow UI: http://localhost:8001"
+echo "   - JupyterLab: http://localhost:8004 (token: mlflow2024)"
+echo "   - API Docs: http://localhost:8005/docs"
 echo ""
 echo "📝 Próximos pasos:"
 echo "   1. Verifica que el bucket mlflows3 existe en MinIO Console"
-echo "   2. Abre JupyterLab en http://localhost:7888"
+echo "   2. Abre JupyterLab en http://localhost:8004"
 echo "   3. Ejecuta el notebook experiments.ipynb"
 echo "   4. Verifica los experimentos en MLflow UI"
 echo ""

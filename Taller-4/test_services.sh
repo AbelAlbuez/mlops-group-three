@@ -54,12 +54,12 @@ echo ""
 
 # Verificar servicios HTTP
 echo "🌐 Verificando servicios HTTP:"
-check_service "MinIO Console" "http://localhost:6901" 403
-check_service "MinIO API" "http://localhost:6900" 403
-check_service "MLflow UI" "http://localhost:5001"
-check_service "JupyterLab" "http://localhost:7888"
-check_service "API Health" "http://localhost:7800/health"
-check_service "API Docs" "http://localhost:7800/docs"
+check_service "MinIO Console" "http://localhost:8003" 403
+check_service "MinIO API" "http://localhost:8002" 403
+check_service "MLflow UI" "http://localhost:8001"
+check_service "JupyterLab" "http://localhost:8004"
+check_service "API Health" "http://localhost:8005/health"
+check_service "API Docs" "http://localhost:8005/docs"
 echo ""
 
 # Verificar conectividad MySQL
@@ -102,7 +102,7 @@ echo "🧪 Test de API de predicción:"
 printf "%-20s" "POST /predict:"
 
 # Hacer request de prueba
-response=$(curl -s -X POST "http://localhost:7800/predict" \
+response=$(curl -s -X POST "http://localhost:8005/predict" \
   -H "Content-Type: application/json" \
   -d '{
     "bill_length_mm": 44.5,
@@ -157,7 +157,7 @@ fi
 
 echo ""
 echo "🌐 URLs de acceso (PUERTOS ACTUALIZADOS):"
-echo "   - MinIO Console: http://localhost:6901 (admin/supersecret)"
-echo "   - MLflow UI: http://localhost:5001"
-echo "   - JupyterLab: http://localhost:7888 (token: mlflow2024)"
-echo "   - API Docs: http://localhost:7800/docs"
+echo "   - MinIO Console: http://localhost:8003 (admin/supersecret)"
+echo "   - MLflow UI: http://localhost:8001"
+echo "   - JupyterLab: http://localhost:8004 (token: mlflow2024)"
+echo "   - API Docs: http://localhost:8005/docs"
