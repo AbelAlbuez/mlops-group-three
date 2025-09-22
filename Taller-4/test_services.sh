@@ -54,8 +54,8 @@ echo ""
 
 # Verificar servicios HTTP
 echo "🌐 Verificando servicios HTTP:"
-check_service "MinIO Console" "http://localhost:7001" 403
-check_service "MinIO API" "http://localhost:7000" 403
+check_service "MinIO Console" "http://localhost:6901" 403
+check_service "MinIO API" "http://localhost:6900" 403
 check_service "MLflow UI" "http://localhost:5001"
 check_service "JupyterLab" "http://localhost:7888"
 check_service "API Health" "http://localhost:7800/health"
@@ -157,7 +157,7 @@ fi
 
 echo ""
 echo "🌐 URLs de acceso (PUERTOS ACTUALIZADOS):"
-echo "   - MinIO Console: http://localhost:7001 (admin/supersecret)"
+echo "   - MinIO Console: http://localhost:6901 (admin/supersecret)"
 echo "   - MLflow UI: http://localhost:5001"
 echo "   - JupyterLab: http://localhost:7888 (token: mlflow2024)"
 echo "   - API Docs: http://localhost:7800/docs"
