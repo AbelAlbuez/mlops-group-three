@@ -1,0 +1,52 @@
+# 📑 Evidencias Taller MLflow - Pipeline MLOps
+
+Este documento recopila las evidencias de la ejecución y verificación de cada uno de los componentes del pipeline de MLOps con MLflow.
+
+📌 Arquitectura implementada:
+
+La arquitectura incluye:
+- **Cliente/Browser** para interacción con API y Jupyter.
+- **Capa de Servicio** con FastAPI (:8005).
+- **Capa de MLOps** con MLflow Server (:8001) y JupyterLab (:8004).
+- **Capa de Datos** con MySQL (:3306) y MinIO (S3-compatible, :8002/:8003).
+
+## 2. Verificación de Servicios
+
+📌 Evidencia de la verificación automática de servicios (`./test_services.sh`):
+
+![Test Services]()
+
+- ✅ MySQL en ejecución con bases `penguins_db` y `mlflow_meta`.
+- ✅ MLflow UI disponible en `http://localhost:8001`.
+- ✅ API y Health Check funcionando.
+- ⚠️ MinIO Console y JupyterLab con errores iniciales (Por tokens).
+- ⚠️ FastAPI predicciones: “No hay modelos en Production disponibles”.
+
+## 3. Conexión a MySQL
+
+📌 Evidencia de conexión al contenedor MySQL y exploración de las tablas:
+
+\`\`\`bash
+docker exec -it mlflow-mysql mysql -u root -p
+\`\`\`
+
+Verificación de tablas:
+
+![MySQL Tables](/images/img_3.png)
+
+Consulta de runs registrados en `mlflow_meta`:
+
+![MySQL Tables 2](/images/img_4.png)
+
+Consulta de runs registrados en `runs`:
+
+![MySQL Tables 3](/images/img_5.png)
+
+## 4. Jupiter
+
+📌 Ejecución de notebook. 
+
+- Acceso a JupyterLab
+- Notebook cargado y ejecución de celdas
+
+![Jupiter](/images/img_6.png)
