@@ -12,9 +12,9 @@ La arquitectura incluye:
 
 ## 2. Verificación de Servicios
 
-📌 Evidencia de la verificación automática de servicios (`./test_services.sh`):
+📌 Verificación de servicios (`./test_services.sh`):
 
-![Test Services]()
+![Test Services](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_2.png)
 
 - ✅ MySQL en ejecución con bases `penguins_db` y `mlflow_meta`.
 - ✅ MLflow UI disponible en `http://localhost:8001`.
@@ -22,9 +22,13 @@ La arquitectura incluye:
 - ⚠️ MinIO Console y JupyterLab con errores iniciales (Por tokens).
 - ⚠️ FastAPI predicciones: “No hay modelos en Production disponibles”.
 
+📌 Listado de contenedores (`docker ps`):
+
+![Test Services](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_1.png)
+
 ## 3. Conexión a MySQL
 
-📌 Evidencia de conexión al contenedor MySQL y exploración de las tablas:
+📌 Conexión al contenedor MySQL y exploración de las tablas:
 
 \`\`\`bash
 docker exec -it mlflow-mysql mysql -u root -p
@@ -32,15 +36,12 @@ docker exec -it mlflow-mysql mysql -u root -p
 
 Verificación de tablas:
 
-![MySQL Tables](/images/img_3.png)
+![MySQL Tables](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_3.png)
+![MySQL Tables 2](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_4.png)
 
-Consulta de runs registrados en `mlflow_meta`:
+Consulta de runs registrados en `mlflow_meta` y  `runs`:
 
-![MySQL Tables 2](/images/img_4.png)
-
-Consulta de runs registrados en `runs`:
-
-![MySQL Tables 3](/images/img_5.png)
+![MySQL Tables 2](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_5.png)
 
 ## 4. Jupiter
 
@@ -49,4 +50,29 @@ Consulta de runs registrados en `runs`:
 - Acceso a JupyterLab
 - Notebook cargado y ejecución de celdas
 
-![Jupiter](/images/img_6.png)
+![Jupiter](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_6.png)
+
+## 5. Ejecución y Resultados
+
+📌 Tablas de MySQL
+![MySQL Tables 3](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_7.png)
+![MySQL Tables 4](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_9.png)
+![MySQL Tables 5](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_10.png)
+
+📌 Experimentos MLflow 
+Experimentos y modelos registrados en la interfaz de MLflow (`http://localhost:8001`).
+Experimento: `penguins-classification`.
+Modelos comparados (`Random Forest, KNN, SVM, XGBoost, LightGBM`).
+Registro de mejor modelo en el Model Registry.
+Versión promovida a Production.
+
+![MLflow](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_8.png)
+![MLflow promoted](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_13.png)
+
+📌 Health Check:
+`curl http://localhost:8005/health`
+![healthcheck](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_12.png)
+
+📌 Modelos disponibles en Producción:
+`curl http://localhost:8005/models`
+![models](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/main/Taller-4/evidences/images/img_12.png)
