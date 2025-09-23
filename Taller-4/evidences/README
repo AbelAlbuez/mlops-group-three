@@ -14,7 +14,7 @@ La arquitectura incluye:
 
 📌 Evidencia de la verificación automática de servicios (`./test_services.sh`):
 
-![Test Services](/images/img_2.png)
+![Test Services](https://raw.githubusercontent.com/AbelAlbuez/mlops-group-three/refs/heads/Update-readme-evidencesT4/Taller-4/evidences/images/img_2.png)
 
 - ✅ MySQL en ejecución con bases `penguins_db` y `mlflow_meta`.
 - ✅ MLflow UI disponible en `http://localhost:8001`.
