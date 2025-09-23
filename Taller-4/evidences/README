@@ -14,7 +14,7 @@ La arquitectura incluye:
 
 📌 Evidencia de la verificación automática de servicios (`./test_services.sh`):
 
-![Test Services](images/img_2.png)
+![Test Services](/images/img_2.png)
 
 - ✅ MySQL en ejecución con bases `penguins_db` y `mlflow_meta`.
 - ✅ MLflow UI disponible en `http://localhost:8001`.
@@ -32,15 +32,15 @@ docker exec -it mlflow-mysql mysql -u root -p
 
 Verificación de tablas:
 
-![MySQL Tables](images/img_3.png)
+![MySQL Tables](/images/img_3.png)
 
 Consulta de runs registrados en `mlflow_meta`:
 
-![MySQL Tables 2](images/img_4.png)
+![MySQL Tables 2](/images/img_4.png)
 
 Consulta de runs registrados en `runs`:
 
-![MySQL Tables 3](images/img_5.png)
+![MySQL Tables 3](/images/img_5.png)
 
 ## 4. Jupiter
 
@@ -49,4 +49,4 @@ Consulta de runs registrados en `runs`:
 - Acceso a JupyterLab
 - Notebook cargado y ejecución de celdas
 
-![Jupiter](images/img_6.png)
+![Jupiter](/images/img_6.png)
