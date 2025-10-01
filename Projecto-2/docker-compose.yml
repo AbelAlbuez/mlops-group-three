@@ -8,30 +8,42 @@ x-airflow-env: &airflow-env
   AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@airflow-db:5432/${POSTGRES_DB}
   AIRFLOW__WEBSERVER__RBAC: "true"
+  AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
+  AIRFLOW__LOGGING__REMOTE_LOGGING: "false"
+  AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: ""
+  AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
   _PIP_ADDITIONAL_REQUIREMENTS: ""
 
-    # Airflow Variables for DAG
-  AIRFLOW_VAR_P2_API_BASE: "http://10.43.100.103:80"
-  AIRFLOW_VAR_P2_GROUP_ID: "3"
-  AIRFLOW_VAR_P2_API_PATH: "/data"
-  AIRFLOW_VAR_P2_TARGET_COL: "Cover_Type"
-  AIRFLOW_VAR_P2_SCHEDULE_CRON: "*/5 * * * *"
-  AIRFLOW_VAR_P2_DATA_DIR: "/opt/airflow/data/p2"
-  AIRFLOW_VAR_P2_RANDOM_STATE: "42"
-  AIRFLOW_VAR_P2_TEST_SIZE: "0.2"
+  # Airflow Variables for DAG (all from env)
+  AIRFLOW_VAR_P2_API_BASE: ${P2_API_BASE}
+  AIRFLOW_VAR_P2_GROUP_ID: ${P2_GROUP_ID}
+  AIRFLOW_VAR_P2_API_PATH: ${P2_API_PATH}
+  AIRFLOW_VAR_P2_TARGET_COL: ${P2_TARGET_COL}
+  AIRFLOW_VAR_P2_SCHEDULE_CRON: ${P2_SCHEDULE_CRON}
+  AIRFLOW_VAR_P2_DATA_DIR: ${P2_DATA_DIR}
+  AIRFLOW_VAR_P2_RANDOM_STATE: ${P2_RANDOM_STATE}
+  AIRFLOW_VAR_P2_TEST_SIZE: ${P2_TEST_SIZE}
+  AIRFLOW_VAR_P2_MIN_SAMPLE_INCREMENT: ${P2_MIN_SAMPLE_INCREMENT}
 
-  # Variables adicionales para el proyecto
-  P2_EXTERNAL_API: "http://10.43.100.103:80"
-  P2_GROUP_ID: "3" # Ver https://campusvirtuallms.javeriana.edu.co/d2l/lms/group/user_group_list.d2l?ou=299201
-  MLFLOW_TRACKING_URI: "http://mlflow:5000"
-  MLFLOW_S3_ENDPOINT_URL: "http://minio:9000"
-  AWS_ACCESS_KEY_ID: "minioadmin"
-  AWS_SECRET_ACCESS_KEY: "minioadmin"
-  MLFLOW_BACKEND_URI: "mysql+pymysql://mlflow:mlflow@mlflow-db:3306/mlflow"
+  # MLflow Configuration (from env)
+  MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+  MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  MLFLOW_BACKEND_URI: ${MLFLOW_BACKEND_URI}
+
+  # MySQL Configuration for data storage
+  AIRFLOW_VAR_MYSQL_HOST: ${MYSQL_HOST}
+  AIRFLOW_VAR_MYSQL_PORT: ${MYSQL_PORT}
+  AIRFLOW_VAR_MYSQL_USER: ${MYSQL_USER}
+  AIRFLOW_VAR_MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  AIRFLOW_VAR_MYSQL_DATABASE: ${MYSQL_DATABASE}
 
 services:
   airflow-db:
     image: postgres:15
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -40,6 +52,27 @@ services:
       - airflow_db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MySQL database for storing covertype data
+  mysql-db:
+    image: mysql:8.0
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,6 +86,8 @@ services:
     depends_on:
       airflow-db:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       <<: *airflow-env
     command: ["airflow", "db", "init"]
@@ -67,6 +102,8 @@ services:
         condition: service_healthy
       airflow-init:
         condition: service_completed_successfully
+    env_file:
+      - .env
     environment:
       <<: *airflow-env
     command: >
@@ -83,6 +120,8 @@ services:
         condition: service_completed_successfully
       airflow-create-user:
         condition: service_completed_successfully
+    env_file:
+      - .env
     environment:
       <<: *airflow-env
     command: ["airflow", "webserver"]
@@ -98,11 +137,25 @@ services:
         condition: service_healthy
       airflow-init:
         condition: service_completed_successfully
+    env_file:
+      - .env
     environment:
       <<: *airflow-env
     command: ["airflow", "scheduler"]
     volumes:
       - ./airflow/dags:/opt/airflow/dags
 
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - '80:80'
+    volumes:
+      - ./api/data:/data
+      - ./api/main.py:/main.py
+    restart: always
+
 volumes:
   airflow_db:
+  mysql_data:

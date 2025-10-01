@@ -1,96 +1,96 @@
-# Proyecto 2 - Airflow ML Pipeline
+# Proyecto 2 - ML Pipeline with MySQL Storage
 
-Este proyecto implementa un pipeline de Machine Learning usando Apache Airflow que obtiene datos de una API externa, los procesa y entrena un modelo de clasificación.
+Pipeline de Machine Learning con Apache Airflow que obtiene datos de API, los procesa en MySQL y entrena modelos con umbral de incremento.
 
 ## 🚀 Inicio Rápido
 
 ### Prerrequisitos
-- Docker y Docker Compose instalados
-- Puerto 8080 disponible
+- Docker y Docker Compose
+- Puertos 8080 (Airflow), 3306 (MySQL), 80 (API)
 
-### Configuración
-
-1. **Copia el archivo `.env.example` a `.env`** en el directorio raíz
-
-2. **Ejecutar el pipeline**:
+### Ejecución
 ```bash
 cd Projecto-2
+cp .env.example .env  # Editar variables si es necesario
 docker-compose up --build
 ```
 
-3. **Acceder a Airflow**:
-- URL: http://localhost:8080
-- Usuario: `admin`
-- Contraseña: `admin123`
+**Acceso Airflow**: http://localhost:8080 (admin/admin123)
 
-## 📊 Pipeline de ML
+## 📊 Arquitectura del Pipeline
 
-### DAG: `p2_covertype_single_request`
-
+### DAG: `p2_covertype_pipeline`
 **Programación**: Cada 5 minutos
-**Descripción**: Pipeline que procesa datos de cobertura forestal
+**Flujo**: collect_data → preprocess_data → train_model
 
-#### Tareas:
-1. **fetch_once**: Obtiene datos de la API externa
-2. **validate_and_preprocess**: Valida y preprocesa los datos
-3. **train_eval**: Entrena modelo RandomForest y calcula métricas
+#### 1. collect_data
+- Obtiene datos de API externa (`http://api:80/data`)
+- Almacena como strings en tabla `covertype_raw`
+- Detección de duplicados por hash
 
-### Configuración del Pipeline
+#### 2. preprocess_data
+- Lee de `covertype_raw`, convierte tipos
+- **Transformaciones**:
+  - `wilderness_area`: mapeo dinámico string→numeric
+  - `soil_type`: extracción de números con regex
+- Guarda en `covertype_data` (tipos enteros)
 
-Las variables del pipeline se configuran automáticamente:
+#### 3. train_model
+- Entrena solo si incremento ≥ `P2_MIN_SAMPLE_INCREMENT`
+- Usa TODOS los datos disponibles
+- Almacena métricas en `model_metrics`
 
-| Variable | Valor | Descripción |
-|----------|-------|-------------|
-| `P2_API_BASE` | `http://10.43.100.103:80` | URL base de la API |
-| `P2_GROUP_ID` | `3` | ID del grupo |
-| `P2_API_PATH` | `/data` | Endpoint de datos |
-| `P2_TARGET_COL` | `Cover_Type` | Columna objetivo |
-| `P2_SCHEDULE_CRON` | `*/5 * * * *` | Ejecutar cada 5 minutos |
+## 🗄️ Base de Datos MySQL
 
-## 🛠️ Estructura del Proyecto
+### Tablas
+- **`covertype_raw`**: datos originales (VARCHAR)
+- **`covertype_data`**: datos procesados (INT)
+- **`wilderness_area_mapping`**: mapeos string→numeric
+- **`model_metrics`**: métricas de entrenamiento
+- **`preprocessing_logs`**: logs de procesamiento
+
+## ⚙️ Variables de Entorno Clave
+
+```bash
+# API Configuration
+P2_API_BASE=http://api:80
+P2_GROUP_ID=3
+P2_MIN_SAMPLE_INCREMENT=100
+
+# MySQL
+MYSQL_HOST=mysql-db
+MYSQL_DATABASE=covertype_db
+MYSQL_USER=covertype_user
+MYSQL_PASSWORD=covertype_pass123
+
+# Airflow Security
+FERNET_KEY=8hSZrOuU8yqV2Q5nGYKj2wCpkNQkRFxK9M-UYtJzYWE=
+AIRFLOW_SECRET_KEY=o0SxIp4G3NI71Y41XXQhEW8cfv1M8HIx5vx4r6IylmA
+```
+
+## 🛠️ Estructura
 
 ```
 Projecto-2/
 ├── airflow/
-│   ├── dags/
-│   │   └── p2_covertype_single_request.py  # DAG principal
-│   ├── Dockerfile                          # Imagen custom de Airflow
-│   └── requirements.txt                    # Dependencias Python
-├── docker-compose.yml                      # Configuración de servicios
-├── .env                                    # Variables de entorno
-└── README.md                               # Este archivo
+│   ├── dags/p2_covertype_pipeline.py  # DAG principal
+│   ├── Dockerfile & requirements.txt
+├── mysql/init/01-create-schema.sql          # Schema MySQL
+├── api/                                     # API de datos
+├── docker-compose.yml                       # Servicios
+└── .env.example                            # Plantilla variables
 ```
 
-## 📈 Resultados
+## 🔧 Características
 
-Los resultados del pipeline se guardan en `/opt/airflow/data/p2/` dentro del contenedor:
+- **Almacenamiento persistente** en MySQL
+- **Transformaciones inteligentes** (wilderness mapping, soil regex)
+- **Entrenamiento condicional** por umbral de incremento
+- **Detección de duplicados** por hash de datos
+- **Manejo robusto de errores** y logging detallado
 
-- **Datos raw**: `raw_{timestamp}.json`
-- **Datos procesados**: `X_{timestamp}.parquet`, `y_{timestamp}.parquet`
-- **Métricas**: `metrics_{timestamp}.json`
-- **Modelo**: `model_{timestamp}.joblib`
+## 📈 Monitoreo
 
-## 🔧 Comandos Útiles
-
-### Detener servicios
-```bash
-docker-compose down
-```
-
-### Ver logs
-```bash
-docker-compose logs airflow-webserver
-docker-compose logs airflow-scheduler
-```
-
-### Reconstruir imágenes
-```bash
-docker-compose up --build --force-recreate
-```
-
-## 📝 Notas
-
-- El DAG se activa automáticamente al iniciar
-- Los datos se procesan y persisten localmente en el contenedor
-- Las métricas del modelo se imprimen en los logs de Airflow
-- El pipeline maneja errores básicos de validación de datos
+- **Logs Airflow**: `docker-compose logs airflow-scheduler`
+- **MySQL**: puerto 3306 expuesto
+- **Métricas**: tabla `model_metrics` en MySQL
