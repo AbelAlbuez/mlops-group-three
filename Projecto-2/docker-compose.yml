@@ -156,6 +156,33 @@ services:
       - ./api/main.py:/main.py
     restart: always
 
+  inference-api:
+    build:
+      context: ./inference_api
+    image: covertype-inference:latest
+    container_name: inference-api
+    ports:
+      - "8504:8504"
+    environment:
+      MODEL_NAME: "covertype_rf"
+      DUMMY_MODE: "1"                        # quítalo cuando uses MLflow real
+      MLFLOW_TRACKING_URI: "http://mlflow:5000"
+      MLFLOW_S3_ENDPOINT_URL: "http://minio:9000"
+      AWS_ACCESS_KEY_ID: "${MINIO_ROOT_USER}"
+      AWS_SECRET_ACCESS_KEY: "${MINIO_ROOT_PASSWORD}"
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8504"]
+    
+  ui:
+    build:
+      context: ./ui_streamlit
+    image: covertype-ui:latest
+    container_name: ui-streamlit
+    environment:
+      INFERENCE_API_URL: "http://inference-api:8504"
+    ports:
+      - "8503:8503"  
+
 volumes:
   airflow_db:
   mysql_data:
+
