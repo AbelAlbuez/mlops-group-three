@@ -161,3 +161,6 @@ echo "   - MinIO Console: http://localhost:8003 (admin/supersecret)"
 echo "   - MLflow UI: http://localhost:8001"
 echo "   - JupyterLab: http://localhost:8004 (token: mlflow2024)"
 echo "   - API Docs: http://localhost:8005/docs"
+
+echo "Ejecución finalizada. Presiona Enter para salir..."
+read
