@@ -86,8 +86,17 @@ _model_cache = {
 def load_latest_model():
     """Carga el modelo más reciente desde MySQL (fallback cuando MLflow no funciona)"""
     try:
-        # Intentar cargar desde MLflow primero
+        # Intentar cargar desde MLflow primero (con timeout corto)
         try:
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("MLflow timeout")
+            
+            # Configurar timeout de 5 segundos
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(5)
+            
             client = mlflow.MlflowClient()
             experiment = client.get_experiment_by_name("covertype_classification")
             if experiment:
@@ -107,7 +116,11 @@ def load_latest_model():
                     _model_cache["run_id"] = run_id
                     
                     logger.info(f"✅ Modelo cargado desde MLflow run {run_id}")
+                    signal.alarm(0)  # Cancelar timeout
                     return model
+            
+            signal.alarm(0)  # Cancelar timeout
+            
         except Exception as mlflow_error:
             logger.warning(f"⚠️ MLflow no disponible: {mlflow_error}")
         
@@ -141,7 +154,9 @@ def load_latest_model():
                 
                 # El modelo se guarda como pickle en la columna model_data
                 model_data = result[0]
-                model = joblib.loads(model_data)
+                import io
+                model_bytes = io.BytesIO(model_data)
+                model = joblib.load(model_bytes)
                 
                 _model_cache["model"] = model
                 _model_cache["version"] = "mysql_latest"
