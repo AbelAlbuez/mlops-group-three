@@ -148,11 +148,6 @@ services:
         condition: service_healthy
       minio-create-bucket:
         condition: service_completed_successfully
-    environment:
-      MLFLOW_BACKEND_STORE_URI: mysql+pymysql://mlflow:mlflow@mlflow-db:3306/mlflow
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
     ports:
       - "5001:5000"
     healthcheck:
@@ -289,3 +284,4 @@ volumes:
   mysql_data:
   mlflow_db:      # ← AGREGAR
   minio_data:     # ← AGREGAR
+  mlflow_artifacts:  # ← AGREGAR
