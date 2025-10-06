@@ -15,6 +15,7 @@ import requests
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score
+
 import mlflow
 import mlflow.sklearn
 
@@ -33,6 +34,7 @@ DATA_DIR      = Variable.get("P2_DATA_DIR")
 RANDOM_STATE  = int(Variable.get("P2_RANDOM_STATE"))
 TEST_SIZE     = float(Variable.get("P2_TEST_SIZE"))
 MIN_SAMPLE_INCREMENT = int(Variable.get("P2_MIN_SAMPLE_INCREMENT"))
+MLFLOW_TRACKING_URI = Variable.get("MLFLOW_TRACKING_URI")
 
 # MySQL Configuration
 MYSQL_HOST = Variable.get("MYSQL_HOST")
@@ -40,9 +42,6 @@ MYSQL_PORT = int(Variable.get("MYSQL_PORT"))
 MYSQL_USER = Variable.get("MYSQL_USER")
 MYSQL_PASSWORD = Variable.get("MYSQL_PASSWORD")
 MYSQL_DATABASE = Variable.get("MYSQL_DATABASE")
-
-# MLflow Configuration
-MLFLOW_TRACKING_URI = Variable.get("MLFLOW_TRACKING_URI")
 
 # Crea carpeta para artefactos locales (persistencia simple)
 pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
@@ -392,7 +391,7 @@ with DAG(
         finally:
             connection.close()
 
-    # TODO: This task should implement MLFlow
+    # MLFlow integration completed
     def train_model(**context):
         """Step 3: Train model on ALL preprocessed data if sample increment threshold is met"""
         start_time = time.time()
