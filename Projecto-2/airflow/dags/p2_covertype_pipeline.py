@@ -260,9 +260,7 @@ with DAG(
             connection.close()
 
     def preprocess_data(**context):
-        """Step 2: Read from covertype_raw, convert types, and store in covertype_data
-        SIMPLIFIED VERSION - Uses default values for all fields to ensure robustness
-        """
+        """Step 2: Read from covertype_raw, convert types, and store in covertype_data"""
         # Get batch_id from previous task
         batch_id = context["ti"].xcom_pull(task_ids="collect_data", key="batch_id")
 
@@ -290,34 +288,53 @@ with DAG(
                 df = pd.DataFrame(rows)
                 print(f"Processing {len(df)} raw rows for batch {batch_id}")
 
-                processed_rows = 0
+                # Data validation and type conversion
+                required_columns = [
+                    'elevation', 'aspect', 'slope', 'horizontal_distance_to_hydrology',
+                    'vertical_distance_to_hydrology', 'horizontal_distance_to_roadways',
+                    'hillshade_9am', 'hillshade_noon', 'hillshade_3pm',
+                    'horizontal_distance_to_fire_points', 'wilderness_area',
+                    'soil_type', 'cover_type'
+                ]
 
-                # SIMPLIFIED PROCESSING - Use default values for all fields to ensure robustness
+                processed_rows = 0
+                failed_rows = 0
+
+                # Process each row individually for better error handling
                 for _, row in df.iterrows():
                     try:
-                        print(f"Processing row {row['id']} with simplified approach...")
-                        
-                        # Use default values for all fields to ensure robustness
-                        default_values = [
-                            1000,  # elevation
-                            180,   # aspect
-                            10,    # slope
-                            100,   # horizontal_distance_to_hydrology
-                            50,    # vertical_distance_to_hydrology
-                            200,   # horizontal_distance_to_roadways
-                            200,   # hillshade_9am
-                            220,   # hillshade_noon
-                            180,   # hillshade_3pm
-                            300,   # horizontal_distance_to_fire_points
-                            1,     # wilderness_area
-                            1,     # soil_type
-                            1,     # cover_type
-                            batch_id,
-                            row['id'],  # Reference to raw data
-                            'preprocessed'
-                        ]
-                        
-                        # Insert into covertype_data table with default values
+                        # Convert string values to integers with validation
+                        converted_values = {}
+                        conversion_errors = []
+
+                        for col in required_columns:
+                            raw_value = str(row.get(col, '')).strip()
+                            if raw_value == '' or raw_value.lower() in ['nan', 'null', 'none']:
+                                converted_values[col] = 0
+                            else:
+                                try:
+                                    if col == 'wilderness_area':
+                                        # Use mapping table for wilderness area
+                                        converted_values[col] = get_or_create_wilderness_area_mapping(cursor, raw_value)
+                                    elif col == 'soil_type':
+                                        # Extract number from soil type using regex
+                                        converted_values[col] = extract_soil_type_number(raw_value)
+                                    else:
+                                        # Standard integer conversion for other columns
+                                        converted_values[col] = int(float(raw_value))
+                                except (ValueError, TypeError):
+                                    conversion_errors.append(f"{col}: '{raw_value}'")
+                                    converted_values[col] = 0
+
+                        if conversion_errors:
+                            print(f"Warning: Type conversion errors for row {row['id']}: {conversion_errors}")
+
+                        # Validate cover_type range (should be 1-7)
+                        if 'cover_type' in converted_values:
+                            if converted_values['cover_type'] < 0 or converted_values['cover_type'] > 6:
+                                print(f"Warning: Invalid cover_type value {converted_values['cover_type']} for row {row['id']}")
+
+                        # Insert into covertype_data table with proper types
                         insert_sql = """
                         INSERT INTO covertype_data
                         (elevation, aspect, slope, horizontal_distance_to_hydrology,
@@ -327,13 +344,32 @@ with DAG(
                          soil_type, cover_type, batch_id, raw_id, processing_status)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """
-                        
-                        cursor.execute(insert_sql, default_values)
+
+                        values = [
+                            converted_values['elevation'],
+                            converted_values['aspect'],
+                            converted_values['slope'],
+                            converted_values['horizontal_distance_to_hydrology'],
+                            converted_values['vertical_distance_to_hydrology'],
+                            converted_values['horizontal_distance_to_roadways'],
+                            converted_values['hillshade_9am'],
+                            converted_values['hillshade_noon'],
+                            converted_values['hillshade_3pm'],
+                            converted_values['horizontal_distance_to_fire_points'],
+                            converted_values['wilderness_area'],
+                            converted_values['soil_type'],
+                            converted_values['cover_type'],
+                            batch_id,
+                            row['id'],  # Reference to raw data
+                            'preprocessed'
+                        ]
+
+                        cursor.execute(insert_sql, values)
                         processed_rows += 1
-                        print(f"✅ Successfully processed row {row['id']} with default values")
-                        
+
                     except Exception as e:
-                        print(f"❌ Error processing row {row['id']}: {e}")
+                        print(f"Error processing row {row['id']}: {e}")
+                        failed_rows += 1
                         continue
 
                 # Update raw data status to processed
@@ -345,12 +381,13 @@ with DAG(
                 cursor.execute(update_raw_sql, (batch_id,))
 
                 print(f"Preprocessing completed for batch {batch_id}:")
-                print(f"  - Successfully processed: {processed_rows} rows with default values")
+                print(f"  - Successfully processed: {processed_rows} rows")
+                print(f"  - Failed to process: {failed_rows} rows")
                 print(f"  - Total rows in batch: {len(df)}")
 
                 context["ti"].xcom_push(key="preprocessed_batch_id", value=batch_id)
                 context["ti"].xcom_push(key="preprocessed_rows", value=processed_rows)
-                context["ti"].xcom_push(key="failed_rows", value=0)
+                context["ti"].xcom_push(key="failed_rows", value=failed_rows)
 
         finally:
             connection.close()
