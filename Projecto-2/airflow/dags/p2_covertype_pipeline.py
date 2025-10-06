@@ -329,10 +329,11 @@ with DAG(
                         if conversion_errors:
                             print(f"Warning: Type conversion errors for row {row['id']}: {conversion_errors}")
 
-                        # Validate cover_type range (should be 1-7)
+                        # Validate and fix cover_type range (should be 1-7)
                         if 'cover_type' in converted_values:
-                            if converted_values['cover_type'] < 0 or converted_values['cover_type'] > 6:
-                                print(f"Warning: Invalid cover_type value {converted_values['cover_type']} for row {row['id']}")
+                            if converted_values['cover_type'] < 1 or converted_values['cover_type'] > 7:
+                                print(f"Warning: Invalid cover_type value {converted_values['cover_type']} for row {row['id']}, setting to 1")
+                                converted_values['cover_type'] = 1
 
                         # Insert into covertype_data table with proper types
                         insert_sql = """
