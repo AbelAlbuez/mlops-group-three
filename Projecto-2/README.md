@@ -12,16 +12,6 @@ Sistema completo de MLOps para clasificación de tipos de cobertura forestal que
 - **Almacenamiento**: MySQL para datos y MinIO para artifacts
 - **Inferencia**: FastAPI para servir predicciones
 - **Visualización**: Streamlit para interfaz de usuario (BONO)
-- **Configuración Automática**: Variables de Airflow configuradas automáticamente
-
-## ✨ Características Destacadas
-
-- 🚀 **Setup Automático**: El sistema se configura completamente sin intervención manual
-- 🔄 **Pipeline Completo**: Desde ingesta de datos hasta inferencia en producción
-- 📊 **Monitoreo Integrado**: Dashboards para seguimiento de métricas y rendimiento
-- 🎯 **Modelo de Producción**: API REST para predicciones en tiempo real
-- 🖥️ **Interfaz Gráfica**: Streamlit para interacción fácil con el sistema
-- 🔧 **Mantenimiento Automático**: Scripts de validación y troubleshooting incluidos
 
 ## 🏗️ Arquitectura del Sistema
 
@@ -41,27 +31,6 @@ Sistema completo de MLOps para clasificación de tipos de cobertura forestal que
 
 ## 🚀 Instalación y Configuración
 
-### ⚡ Instalación Rápida (Recomendada)
-
-```bash
-# 1. Clonar el repositorio
-git clone https://github.com/abelalbuez/mlops-group-three.git
-cd mlops-group-three/Projecto-2
-
-# 2. Ejecutar el sistema (configuración automática incluida)
-docker compose up -d
-
-# 3. Verificar que todo funciona
-./validate_system.sh
-
-# 4. Acceder a los servicios
-# Airflow: http://localhost:8080 (admin/admin123)
-# MLflow: http://localhost:5001
-# MinIO: http://localhost:9001 (minioadmin/minioadmin)
-# API: http://localhost:8000
-# Streamlit: http://localhost:8503
-```
-
 ### Prerrequisitos
 
 - Docker y Docker Compose
@@ -71,13 +40,13 @@ docker compose up -d
 ### 1. Clonar el Repositorio
 
 ```bash
-git clone https://github.com/abelalbuez/mlops-group-three.git
+git clone <repository-url>
 cd mlops-group-three/Projecto-2
 ```
 
-### 2. Configurar Variables de Entorno (Opcional)
+### 2. Configurar Variables de Entorno
 
-El sistema incluye configuración automática, pero puedes personalizar creando archivo `.env`:
+Crear archivo `.env` en la raíz del proyecto:
 
 ```bash
 # Airflow Configuration
@@ -137,25 +106,9 @@ docker-compose logs -f
 ### 4. Verificar Instalación
 
 ```bash
-# Ejecutar script de validación completo
+# Ejecutar script de validación
 ./validate_system.sh
-
-# Verificar estado de contenedores
-docker compose ps
-
-# Verificar logs si hay problemas
-docker compose logs -f
 ```
-
-### 5. Configuración Automática
-
-El sistema incluye un servicio especializado que configura automáticamente:
-
-- ✅ **Variables de Airflow**: Todas las variables necesarias para el DAG
-- ✅ **Usuarios y Permisos**: Usuario admin de Airflow creado automáticamente
-- ✅ **Bases de Datos**: Esquemas MySQL inicializados
-- ✅ **Buckets MinIO**: Bucket `mlflow` creado automáticamente
-- ✅ **Conexiones**: Configuración de conexiones entre servicios
 
 ## 🔧 Servicios del Sistema
 
@@ -165,11 +118,11 @@ El sistema incluye un servicio especializado que configura automáticamente:
 - **Función**: Orquestación de pipelines ML
 - **DAG**: `p2_covertype_pipeline` (ejecuta cada 5 minutos)
 
-### 2. MLflow (Puerto 5001)
-- **URL**: http://localhost:5001
+### 2. MLflow (Puerto 5000)
+- **URL**: http://localhost:5000
 - **Función**: Tracking de experimentos y modelos
 - **Experimento**: `covertype_classification`
-- **Modelo**: `CovertypeClassifier`
+- **Modelo**: `covertype_classifier`
 
 ### 3. MinIO (Puerto 9001)
 - **URL**: http://localhost:9001
@@ -198,10 +151,10 @@ El sistema incluye un servicio especializado que configura automáticamente:
 
 ### 2. Monitorear Experimentos
 
-1. Acceder a MLflow UI: http://localhost:5001
+1. Acceder a MLflow UI: http://localhost:5000
 2. Ver experimento: `covertype_classification`
 3. Revisar runs, métricas y artifacts
-4. Verificar modelo registrado: `CovertypeClassifier`
+4. Verificar modelo registrado: `covertype_classifier`
 
 ### 3. Realizar Predicciones
 
@@ -276,111 +229,114 @@ Projecto-2/
 #### 1. Servicios no inician
 ```bash
 # Verificar logs
-docker compose logs [servicio]
+docker-compose logs [servicio]
 
 # Reiniciar servicios
-docker compose restart [servicio]
+docker-compose restart [servicio]
 
 # Reconstruir imágenes
-docker compose build [servicio]
-
-# Limpiar y reiniciar completamente
-docker compose down -v
-docker compose up -d
+docker-compose build [servicio]
 ```
 
 #### 2. Error de conexión a base de datos
 ```bash
 # Verificar que MySQL esté corriendo
-docker compose ps mysql-db
+docker-compose ps mysql-db
 
 # Verificar conectividad
-docker compose exec mysql-db mysql -u covertype_user -pcovertype_pass123 covertype_db
-
-# Verificar que las tablas existen
-docker compose exec mysql-db mysql -u covertype_user -pcovertype_pass123 -e "USE covertype_db; SHOW TABLES;"
+docker-compose exec mysql-db mysql -u covertype_user -pcovertype_pass123 covertype_db
 ```
 
 #### 3. MLflow no puede conectar a MinIO
 ```bash
 # Verificar que MinIO esté corriendo
-docker compose ps minio
+docker-compose ps minio
 
 # Verificar bucket
-docker compose exec minio mc ls myminio/
-
-# Verificar configuración MLflow
-curl http://localhost:5001/api/2.0/mlflow/experiments/search
+docker-compose exec minio mc ls myminio/
 ```
 
 #### 4. API de inferencia no carga modelo
 ```bash
 # Verificar que hay modelos en MLflow
-curl http://localhost:5001/api/2.0/mlflow/registered-models/search
+curl http://localhost:5000/api/2.0/mlflow/registered-models/list
 
-# Verificar que el DAG se ejecutó correctamente
-docker compose exec airflow-webserver airflow dags list
-
-# Ejecutar el DAG manualmente
-docker compose exec airflow-webserver airflow dags trigger p2_covertype_pipeline
+# Forzar recarga
+curl -X POST http://localhost:8000/reload-model
 ```
 
 #### 5. DAG de Airflow no ejecuta
 ```bash
 # Verificar logs del scheduler
-docker compose logs airflow-scheduler
+docker-compose logs airflow-scheduler
 
 # Verificar que el DAG no tiene errores
-docker compose exec airflow-webserver airflow dags list
-
-# Verificar variables de Airflow
-docker compose exec airflow-webserver airflow variables list
-
-# Activar el DAG manualmente
-docker compose exec airflow-webserver airflow dags unpause p2_covertype_pipeline
-```
-
-#### 6. Variables de Airflow faltantes
-```bash
-# El sistema se configura automáticamente, pero si hay problemas:
-docker compose exec airflow-webserver airflow variables set P2_GROUP_ID 3
-docker compose exec airflow-webserver airflow variables set MLFLOW_TRACKING_URI http://mlflow:5000
-# ... (ver sección de configuración para todas las variables)
+docker-compose exec airflow-scheduler airflow dags list
 ```
 
 ### Comandos Útiles
 
 ```bash
 # Ver estado de todos los servicios
-docker compose ps
+docker-compose ps
 
 # Ver logs de un servicio específico
-docker compose logs -f [servicio]
+docker-compose logs -f [servicio]
 
 # Reiniciar un servicio
-docker compose restart [servicio]
+docker-compose restart [servicio]
 
 # Reconstruir un servicio
-docker compose build [servicio]
+docker-compose build [servicio]
 
 # Detener todos los servicios
-docker compose down
+docker-compose down
 
 # Limpiar volúmenes (¡CUIDADO! Borra datos)
-docker compose down -v
-
-# Ejecutar script de validación
-./validate_system.sh
-
-# Verificar variables de Airflow
-docker compose exec airflow-webserver airflow variables list
-
-# Ejecutar DAG manualmente
-docker compose exec airflow-webserver airflow dags trigger p2_covertype_pipeline
-
-# Verificar datos en MySQL
-docker compose exec mysql-db mysql -u covertype_user -pcovertype_pass123 -e "USE covertype_db; SELECT COUNT(*) FROM covertype_data;"
+docker-compose down -v
 ```
+
+## 🔧 Problemas Abordados y Soluciones
+
+### 1. Incompatibilidad de Versiones MLflow
+**Problema**: Error de API endpoint `/api/2.0/mlflow/logged-models` no disponible en MLflow 2.9.0
+**Causa**: Incompatibilidad entre cliente MLflow (3.2.0) y servidor MLflow (2.9.0)
+**Solución**: Actualización del servidor MLflow a la versión 3.2.0 para sincronizar versiones
+
+### 2. Variables de Entorno Faltantes en Airflow
+**Problema**: DAG fallaba al importar debido a variables de Airflow faltantes
+**Causa**: Variables de configuración no estaban disponibles en el entorno de Airflow
+**Solución**: Implementación de servicio `airflow-set-variables` en docker-compose.yml que configura automáticamente todas las variables necesarias
+
+### 3. Configuración de MinIO para MLflow
+**Problema**: MLflow no podía guardar artifacts en MinIO
+**Causa**: Variables de entorno AWS/MinIO no configuradas en contenedores de Airflow
+**Solución**: Adición de variables de entorno `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `MLFLOW_S3_ENDPOINT_URL`, y `MLFLOW_S3_IGNORE_TLS` en contenedores de Airflow
+
+### 4. Lógica de Incremento de Muestras en DAG
+**Problema**: DAG saltaba el entrenamiento en la primera ejecución debido a `MIN_SAMPLE_INCREMENT`
+**Causa**: Lógica diseñada para entrenar solo con incrementos de datos, pero no consideraba la primera ejecución
+**Solución**: Configuración temporal de `P2_MIN_SAMPLE_INCREMENT=0` para permitir entrenamiento inicial
+
+### 5. Esquema de Base de Datos MLflow Desactualizado
+**Problema**: MLflow no iniciaba debido a esquema de base de datos desactualizado
+**Causa**: Base de datos MLflow creada con versión anterior
+**Solución**: Eliminación y recreación de la base de datos `mlflow` en MySQL
+
+### 6. Credenciales de Airflow por Defecto
+**Problema**: No se podía acceder a Airflow con credenciales por defecto
+**Causa**: Usuario admin no estaba configurado correctamente
+**Solución**: Implementación de servicio `airflow-create-user` que crea usuario admin con credenciales específicas
+
+### 7. Configuración Automática de Variables
+**Problema**: Variables de Airflow requerían configuración manual después de cada reinicio
+**Causa**: Falta de automatización en la configuración inicial
+**Solución**: Servicio `airflow-set-variables` que se ejecuta automáticamente al iniciar el sistema
+
+### 8. Limpieza Completa del Sistema
+**Problema**: Residuos de ejecuciones anteriores causaban conflictos
+**Causa**: Imágenes, contenedores y volúmenes de ejecuciones previas
+**Solución**: Implementación de proceso de limpieza completa con `docker system prune -a --volumes -f`
 
 ## 📈 Métricas y Monitoreo
 
@@ -427,23 +383,5 @@ docker compose exec mysql-db mysql -u covertype_user -pcovertype_pass123 -e "USE
 ## 🎉 ¡Sistema Listo!
 
 El sistema está completamente implementado y listo para usar. Todos los componentes están integrados y funcionando correctamente.
-
-### 🚀 Características Implementadas
-
-- ✅ **Pipeline ML Completo**: Desde ingesta hasta inferencia
-- ✅ **Configuración Automática**: Sin intervención manual requerida
-- ✅ **Monitoreo Integrado**: Dashboards y métricas en tiempo real
-- ✅ **API de Producción**: Endpoints REST para predicciones
-- ✅ **Interfaz Gráfica**: Streamlit para interacción fácil
-- ✅ **Validación Automática**: Scripts de verificación incluidos
-- ✅ **Troubleshooting**: Guías completas de resolución de problemas
-
-### 📊 Estado del Sistema
-
-- **Datos Procesados**: 433+ muestras de cobertura forestal
-- **Modelos Entrenados**: Random Forest Classifier
-- **Experimentos MLflow**: 2 experimentos activos
-- **Servicios**: 9 contenedores funcionando correctamente
-- **Uptime**: Sistema estable y confiable
 
 **¡Disfruta explorando el sistema MLOps! 🚀**
