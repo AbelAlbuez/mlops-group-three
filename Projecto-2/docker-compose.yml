@@ -204,6 +204,40 @@ services:
       --role Admin --email ${AIRFLOW_ADMIN_EMAIL} --password ${AIRFLOW_ADMIN_PASSWORD}
     restart: "no"
 
+  airflow-set-variables:
+    image: airflow-custom:2.9.2
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+      airflow-create-user:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      <<: *airflow-env
+    command: >
+      bash -c "
+      airflow variables set P2_API_BASE '${P2_API_BASE}' || true &&
+      airflow variables set P2_GROUP_ID '${P2_GROUP_ID}' || true &&
+      airflow variables set P2_API_PATH '${P2_API_PATH}' || true &&
+      airflow variables set P2_TARGET_COL '${P2_TARGET_COL}' || true &&
+      airflow variables set P2_SCHEDULE_CRON '${P2_SCHEDULE_CRON}' || true &&
+      airflow variables set P2_DATA_DIR '${P2_DATA_DIR}' || true &&
+      airflow variables set P2_RANDOM_STATE '${P2_RANDOM_STATE}' || true &&
+      airflow variables set P2_TEST_SIZE '${P2_TEST_SIZE}' || true &&
+      airflow variables set P2_MIN_SAMPLE_INCREMENT '10' || true &&
+      airflow variables set MLFLOW_TRACKING_URI 'http://mlflow:5000' || true &&
+      airflow variables set MYSQL_HOST '${MYSQL_HOST}' || true &&
+      airflow variables set MYSQL_PORT '${MYSQL_PORT}' || true &&
+      airflow variables set MYSQL_USER '${MYSQL_USER}' || true &&
+      airflow variables set MYSQL_PASSWORD '${MYSQL_PASSWORD}' || true &&
+      airflow variables set MYSQL_DATABASE '${MYSQL_DATABASE}' || true &&
+      echo 'Variables de Airflow configuradas exitosamente'
+      "
+    restart: "no"
+
   airflow-webserver:
     image: airflow-custom:2.9.2
     depends_on:
@@ -212,6 +246,8 @@ services:
       airflow-init:
         condition: service_completed_successfully
       airflow-create-user:
+        condition: service_completed_successfully
+      airflow-set-variables:
         condition: service_completed_successfully
     env_file:
       - .env
@@ -229,6 +265,8 @@ services:
       airflow-db:
         condition: service_healthy
       airflow-init:
+        condition: service_completed_successfully
+      airflow-set-variables:
         condition: service_completed_successfully
     env_file:
       - .env
