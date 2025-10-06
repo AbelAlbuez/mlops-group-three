@@ -89,29 +89,37 @@ def load_latest_model():
         # Obtener cliente de MLflow
         client = mlflow.MlflowClient()
         
-        # Intentar obtener todas las versiones del modelo
-        versions = client.search_model_versions(f"name='{MODEL_NAME}'")
+        # Buscar en experimentos en lugar del Model Registry
+        experiment = client.get_experiment_by_name("covertype_classification")
+        if not experiment:
+            raise ValueError("Experimento 'covertype_classification' no encontrado")
         
-        if not versions:
-            raise ValueError(f"No se encontraron versiones para el modelo {MODEL_NAME}")
+        # Obtener los runs del experimento
+        runs = client.search_runs(
+            experiment_ids=[experiment.experiment_id],
+            order_by=["start_time DESC"],
+            max_results=1
+        )
         
-        # Ordenar por versión (descendente) y tomar la más reciente
-        latest = sorted(versions, key=lambda x: int(x.version), reverse=True)[0]
-        version = latest.version
-        run_id = latest.run_id
+        if not runs:
+            raise ValueError("No se encontraron runs en el experimento")
         
-        logger.info(f"Cargando modelo {MODEL_NAME} versión {version}")
+        # Tomar el run más reciente
+        latest_run = runs[0]
+        run_id = latest_run.info.run_id
         
-        # Cargar modelo
-        model_uri = f"models:/{MODEL_NAME}/{version}"
+        logger.info(f"Cargando modelo del run {run_id}")
+        
+        # Cargar modelo usando la URI del run
+        model_uri = f"runs:/{run_id}/model"
         model = mlflow.sklearn.load_model(model_uri)
         
         # Actualizar caché
         _model_cache["model"] = model
-        _model_cache["version"] = version
+        _model_cache["version"] = "latest"
         _model_cache["run_id"] = run_id
         
-        logger.info(f"✅ Modelo cargado: v{version}, run_id={run_id}")
+        logger.info(f"✅ Modelo cargado del run {run_id}")
         return model
         
     except Exception as e:
