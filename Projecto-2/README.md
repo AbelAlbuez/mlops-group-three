@@ -3,6 +3,12 @@
 **Pontificia Universidad Javeriana - MLOps**  
 **Grupo 3**: Abel Albuez Sanchez, Omar Gaston Chalas, Mauricio Morales
 
+
+# Presentacion & Demo
+
+https://www.youtube.com/watch?v=prx6Lma1Ss4
+
+
 ## 📋 Descripción del Proyecto
 
 Sistema completo de MLOps para clasificación de tipos de cobertura forestal que incluye:
