@@ -550,10 +550,11 @@ with DAG(
                             "training_time_seconds": float(training_time)
                         })
                         
-                        # Log del modelo (sin signature para evitar problemas)
+                        # Log del modelo con registro en Model Registry
                         mlflow.sklearn.log_model(
                             sk_model=model,
-                            artifact_path="model"
+                            artifact_path="model",
+                            registered_model_name="covertype_classifier"
                         )
                         
                         # Log de tags
