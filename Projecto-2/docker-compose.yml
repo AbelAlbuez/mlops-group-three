@@ -138,25 +138,37 @@ services:
   # MLflow Tracking Server
   # ==========================================
   mlflow:
-    build:
-      context: ./mlflow
-      dockerfile: Dockerfile
-    depends_on:
-      mlflow-db:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      minio-create-bucket:
-        condition: service_completed_successfully
-    ports:
-      - "5001:5000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    restart: unless-stopped
+      image: python:3.11-slim
+      command: >
+        bash -c "
+        pip install mlflow==2.9.0 pymysql==1.1.0 &&
+        mkdir -p /mlflow/artifacts &&
+        sleep 10 &&
+        exec mlflow server
+        --backend-store-uri mysql+pymysql://mlflow:mlflow@mlflow-db:3306/mlflow
+        --default-artifact-root /mlflow/artifacts
+        --host 0.0.0.0
+        --port 5000
+        --workers 1
+        "
+      depends_on:
+        mlflow-db:
+          condition: service_healthy
+        minio:
+          condition: service_healthy
+        minio-create-bucket:
+          condition: service_completed_successfully
+      volumes:
+        - mlflow_artifacts:/mlflow/artifacts
+      ports:
+        - "5001:5000"
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+        start_period: 30s
+      restart: unless-stopped
 
   # build de la imagen custom
   airflow-init:

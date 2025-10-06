@@ -84,43 +84,74 @@ _model_cache = {
 }
 
 def load_latest_model():
-    """Carga el modelo más reciente desde MLflow"""
+    """Carga el modelo más reciente desde MySQL (fallback cuando MLflow no funciona)"""
     try:
-        # Obtener cliente de MLflow
-        client = mlflow.MlflowClient()
+        # Intentar cargar desde MLflow primero
+        try:
+            client = mlflow.MlflowClient()
+            experiment = client.get_experiment_by_name("covertype_classification")
+            if experiment:
+                runs = client.search_runs(
+                    experiment_ids=[experiment.experiment_id],
+                    order_by=["start_time DESC"],
+                    max_results=1
+                )
+                if runs:
+                    latest_run = runs[0]
+                    run_id = latest_run.info.run_id
+                    model_uri = f"runs:/{run_id}/model"
+                    model = mlflow.sklearn.load_model(model_uri)
+                    
+                    _model_cache["model"] = model
+                    _model_cache["version"] = "latest"
+                    _model_cache["run_id"] = run_id
+                    
+                    logger.info(f"✅ Modelo cargado desde MLflow run {run_id}")
+                    return model
+        except Exception as mlflow_error:
+            logger.warning(f"⚠️ MLflow no disponible: {mlflow_error}")
         
-        # Buscar en experimentos en lugar del Model Registry
-        experiment = client.get_experiment_by_name("covertype_classification")
-        if not experiment:
-            raise ValueError("Experimento 'covertype_classification' no encontrado")
+        # Fallback: cargar modelo desde MySQL usando joblib
+        import joblib
+        import pymysql
+        import os
         
-        # Obtener los runs del experimento
-        runs = client.search_runs(
-            experiment_ids=[experiment.experiment_id],
-            order_by=["start_time DESC"],
-            max_results=1
+        # Conectar a MySQL
+        connection = pymysql.connect(
+            host=os.getenv("MYSQL_HOST", "mysql-db"),
+            port=int(os.getenv("MYSQL_PORT", "3306")),
+            user=os.getenv("MYSQL_USER", "covertype_user"),
+            password=os.getenv("MYSQL_PASSWORD", "covertype_pass123"),
+            database=os.getenv("MYSQL_DATABASE", "covertype_db")
         )
         
-        if not runs:
-            raise ValueError("No se encontraron runs en el experimento")
-        
-        # Tomar el run más reciente
-        latest_run = runs[0]
-        run_id = latest_run.info.run_id
-        
-        logger.info(f"Cargando modelo del run {run_id}")
-        
-        # Cargar modelo usando la URI del run
-        model_uri = f"runs:/{run_id}/model"
-        model = mlflow.sklearn.load_model(model_uri)
-        
-        # Actualizar caché
-        _model_cache["model"] = model
-        _model_cache["version"] = "latest"
-        _model_cache["run_id"] = run_id
-        
-        logger.info(f"✅ Modelo cargado del run {run_id}")
-        return model
+        try:
+            with connection.cursor() as cursor:
+                # Obtener la métrica más reciente para obtener el modelo
+                cursor.execute("""
+                    SELECT model_data, created_at 
+                    FROM model_metrics 
+                    ORDER BY created_at DESC 
+                    LIMIT 1
+                """)
+                result = cursor.fetchone()
+                
+                if not result:
+                    raise ValueError("No se encontraron modelos en la base de datos")
+                
+                # El modelo se guarda como pickle en la columna model_data
+                model_data = result[0]
+                model = joblib.loads(model_data)
+                
+                _model_cache["model"] = model
+                _model_cache["version"] = "mysql_latest"
+                _model_cache["run_id"] = "mysql_fallback"
+                
+                logger.info("✅ Modelo cargado desde MySQL (fallback)")
+                return model
+                
+        finally:
+            connection.close()
         
     except Exception as e:
         logger.error(f"❌ Error al cargar modelo: {str(e)}")

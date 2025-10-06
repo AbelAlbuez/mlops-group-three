@@ -605,12 +605,19 @@ with DAG(
                 print("TRAINING METRICS:")
                 print(json.dumps(metrics, indent=2))
 
-                # Store metrics in database (use current_batch_id as trigger batch)
+                # Serializar el modelo para guardarlo en MySQL
+                import joblib
+                import io
+                model_bytes = io.BytesIO()
+                joblib.dump(model, model_bytes)
+                model_data = model_bytes.getvalue()
+                
+                # Store metrics and model in database (use current_batch_id as trigger batch)
                 insert_metrics_sql = """
                 INSERT INTO model_metrics
                 (batch_id, accuracy, f1_macro, n_samples_train, n_samples_test,
-                 n_features, model_type, hyperparameters, training_time_seconds)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 n_features, model_type, hyperparameters, training_time_seconds, model_data)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
 
                 cursor.execute(insert_metrics_sql, (
@@ -622,7 +629,8 @@ with DAG(
                     X.shape[1],
                     "RandomForestClassifier",
                     json.dumps(hyperparams),
-                    training_time
+                    training_time,
+                    model_data
                 ))
 
                 # Update ALL preprocessed data status to completed

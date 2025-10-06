@@ -67,6 +67,7 @@ CREATE TABLE model_metrics (
     model_type VARCHAR(100) DEFAULT 'RandomForestClassifier',
     hyperparameters JSON,
     training_time_seconds DECIMAL(10, 3),
+    model_data LONGBLOB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_batch_id (batch_id),
     INDEX idx_created_at (created_at),
