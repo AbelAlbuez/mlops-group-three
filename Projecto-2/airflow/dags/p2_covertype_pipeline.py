@@ -303,10 +303,11 @@ with DAG(
                 # Process each row individually for better error handling
                 for _, row in df.iterrows():
                     try:
+                        print(f"Processing row {row['id']}...")
+                        
                         # Convert string values to integers with validation
                         converted_values = {}
-                        conversion_errors = []
-
+                        
                         for col in required_columns:
                             raw_value = str(row.get(col, '')).strip()
                             if raw_value == '' or raw_value.lower() in ['nan', 'null', 'none']:
@@ -322,18 +323,17 @@ with DAG(
                                     else:
                                         # Standard integer conversion for other columns
                                         converted_values[col] = int(float(raw_value))
-                                except (ValueError, TypeError):
-                                    conversion_errors.append(f"{col}: '{raw_value}'")
+                                except (ValueError, TypeError) as e:
+                                    print(f"Conversion error for {col}: '{raw_value}' - {e}")
                                     converted_values[col] = 0
-
-                        if conversion_errors:
-                            print(f"Warning: Type conversion errors for row {row['id']}: {conversion_errors}")
 
                         # Validate and fix cover_type range (should be 1-7)
                         if 'cover_type' in converted_values:
                             if converted_values['cover_type'] < 1 or converted_values['cover_type'] > 7:
                                 print(f"Warning: Invalid cover_type value {converted_values['cover_type']} for row {row['id']}, setting to 1")
                                 converted_values['cover_type'] = 1
+
+                        print(f"Converted values for row {row['id']}: {converted_values}")
 
                         # Insert into covertype_data table with proper types
                         insert_sql = """
@@ -367,9 +367,36 @@ with DAG(
 
                         cursor.execute(insert_sql, values)
                         processed_rows += 1
+                        print(f"✅ Successfully processed row {row['id']}")
 
                     except Exception as e:
-                        print(f"Error processing row {row['id']}: {e}")
+                        print(f"❌ Error processing row {row['id']}: {e}")
+                        print(f"Row data: {dict(row)}")
+                        # Insert failed row with default values
+                        try:
+                            failed_insert_sql = """
+                            INSERT INTO covertype_data
+                            (elevation, aspect, slope, horizontal_distance_to_hydrology,
+                             vertical_distance_to_hydrology, horizontal_distance_to_roadways,
+                             hillshade_9am, hillshade_noon, hillshade_3pm,
+                             horizontal_distance_to_fire_points, wilderness_area,
+                             soil_type, cover_type, batch_id, raw_id, processing_status)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """
+                            
+                            # Use default values for failed rows
+                            failed_values = [
+                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,  # Default values
+                                batch_id,
+                                row['id'],
+                                'failed'
+                            ]
+                            
+                            cursor.execute(failed_insert_sql, failed_values)
+                            print(f"Inserted failed row {row['id']} with default values")
+                        except Exception as insert_error:
+                            print(f"Failed to insert failed row {row['id']}: {insert_error}")
+                        
                         failed_rows += 1
                         continue
 
