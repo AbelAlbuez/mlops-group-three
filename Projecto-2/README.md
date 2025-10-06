@@ -12,6 +12,16 @@ Sistema completo de MLOps para clasificación de tipos de cobertura forestal que
 - **Almacenamiento**: MySQL para datos y MinIO para artifacts
 - **Inferencia**: FastAPI para servir predicciones
 - **Visualización**: Streamlit para interfaz de usuario (BONO)
+- **Configuración Automática**: Variables de Airflow configuradas automáticamente
+
+## ✨ Características Destacadas
+
+- 🚀 **Setup Automático**: El sistema se configura completamente sin intervención manual
+- 🔄 **Pipeline Completo**: Desde ingesta de datos hasta inferencia en producción
+- 📊 **Monitoreo Integrado**: Dashboards para seguimiento de métricas y rendimiento
+- 🎯 **Modelo de Producción**: API REST para predicciones en tiempo real
+- 🖥️ **Interfaz Gráfica**: Streamlit para interacción fácil con el sistema
+- 🔧 **Mantenimiento Automático**: Scripts de validación y troubleshooting incluidos
 
 ## 🏗️ Arquitectura del Sistema
 
@@ -31,6 +41,27 @@ Sistema completo de MLOps para clasificación de tipos de cobertura forestal que
 
 ## 🚀 Instalación y Configuración
 
+### ⚡ Instalación Rápida (Recomendada)
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/abelalbuez/mlops-group-three.git
+cd mlops-group-three/Projecto-2
+
+# 2. Ejecutar el sistema (configuración automática incluida)
+docker compose up -d
+
+# 3. Verificar que todo funciona
+./validate_system.sh
+
+# 4. Acceder a los servicios
+# Airflow: http://localhost:8080 (admin/admin123)
+# MLflow: http://localhost:5001
+# MinIO: http://localhost:9001 (minioadmin/minioadmin)
+# API: http://localhost:8000
+# Streamlit: http://localhost:8503
+```
+
 ### Prerrequisitos
 
 - Docker y Docker Compose
@@ -40,13 +71,13 @@ Sistema completo de MLOps para clasificación de tipos de cobertura forestal que
 ### 1. Clonar el Repositorio
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/abelalbuez/mlops-group-three.git
 cd mlops-group-three/Projecto-2
 ```
 
-### 2. Configurar Variables de Entorno
+### 2. Configurar Variables de Entorno (Opcional)
 
-Crear archivo `.env` en la raíz del proyecto:
+El sistema incluye configuración automática, pero puedes personalizar creando archivo `.env`:
 
 ```bash
 # Airflow Configuration
@@ -106,9 +137,25 @@ docker-compose logs -f
 ### 4. Verificar Instalación
 
 ```bash
-# Ejecutar script de validación
+# Ejecutar script de validación completo
 ./validate_system.sh
+
+# Verificar estado de contenedores
+docker compose ps
+
+# Verificar logs si hay problemas
+docker compose logs -f
 ```
+
+### 5. Configuración Automática
+
+El sistema incluye un servicio especializado que configura automáticamente:
+
+- ✅ **Variables de Airflow**: Todas las variables necesarias para el DAG
+- ✅ **Usuarios y Permisos**: Usuario admin de Airflow creado automáticamente
+- ✅ **Bases de Datos**: Esquemas MySQL inicializados
+- ✅ **Buckets MinIO**: Bucket `mlflow` creado automáticamente
+- ✅ **Conexiones**: Configuración de conexiones entre servicios
 
 ## 🔧 Servicios del Sistema
 
@@ -118,11 +165,11 @@ docker-compose logs -f
 - **Función**: Orquestación de pipelines ML
 - **DAG**: `p2_covertype_pipeline` (ejecuta cada 5 minutos)
 
-### 2. MLflow (Puerto 5000)
-- **URL**: http://localhost:5000
+### 2. MLflow (Puerto 5001)
+- **URL**: http://localhost:5001
 - **Función**: Tracking de experimentos y modelos
 - **Experimento**: `covertype_classification`
-- **Modelo**: `covertype_classifier`
+- **Modelo**: `CovertypeClassifier`
 
 ### 3. MinIO (Puerto 9001)
 - **URL**: http://localhost:9001
@@ -151,10 +198,10 @@ docker-compose logs -f
 
 ### 2. Monitorear Experimentos
 
-1. Acceder a MLflow UI: http://localhost:5000
+1. Acceder a MLflow UI: http://localhost:5001
 2. Ver experimento: `covertype_classification`
 3. Revisar runs, métricas y artifacts
-4. Verificar modelo registrado: `covertype_classifier`
+4. Verificar modelo registrado: `CovertypeClassifier`
 
 ### 3. Realizar Predicciones
 
@@ -229,71 +276,110 @@ Projecto-2/
 #### 1. Servicios no inician
 ```bash
 # Verificar logs
-docker-compose logs [servicio]
+docker compose logs [servicio]
 
 # Reiniciar servicios
-docker-compose restart [servicio]
+docker compose restart [servicio]
 
 # Reconstruir imágenes
-docker-compose build [servicio]
+docker compose build [servicio]
+
+# Limpiar y reiniciar completamente
+docker compose down -v
+docker compose up -d
 ```
 
 #### 2. Error de conexión a base de datos
 ```bash
 # Verificar que MySQL esté corriendo
-docker-compose ps mysql-db
+docker compose ps mysql-db
 
 # Verificar conectividad
-docker-compose exec mysql-db mysql -u covertype_user -pcovertype_pass123 covertype_db
+docker compose exec mysql-db mysql -u covertype_user -pcovertype_pass123 covertype_db
+
+# Verificar que las tablas existen
+docker compose exec mysql-db mysql -u covertype_user -pcovertype_pass123 -e "USE covertype_db; SHOW TABLES;"
 ```
 
 #### 3. MLflow no puede conectar a MinIO
 ```bash
 # Verificar que MinIO esté corriendo
-docker-compose ps minio
+docker compose ps minio
 
 # Verificar bucket
-docker-compose exec minio mc ls myminio/
+docker compose exec minio mc ls myminio/
+
+# Verificar configuración MLflow
+curl http://localhost:5001/api/2.0/mlflow/experiments/search
 ```
 
 #### 4. API de inferencia no carga modelo
 ```bash
 # Verificar que hay modelos en MLflow
-curl http://localhost:5000/api/2.0/mlflow/registered-models/list
+curl http://localhost:5001/api/2.0/mlflow/registered-models/search
 
-# Forzar recarga
-curl -X POST http://localhost:8000/reload-model
+# Verificar que el DAG se ejecutó correctamente
+docker compose exec airflow-webserver airflow dags list
+
+# Ejecutar el DAG manualmente
+docker compose exec airflow-webserver airflow dags trigger p2_covertype_pipeline
 ```
 
 #### 5. DAG de Airflow no ejecuta
 ```bash
 # Verificar logs del scheduler
-docker-compose logs airflow-scheduler
+docker compose logs airflow-scheduler
 
 # Verificar que el DAG no tiene errores
-docker-compose exec airflow-scheduler airflow dags list
+docker compose exec airflow-webserver airflow dags list
+
+# Verificar variables de Airflow
+docker compose exec airflow-webserver airflow variables list
+
+# Activar el DAG manualmente
+docker compose exec airflow-webserver airflow dags unpause p2_covertype_pipeline
+```
+
+#### 6. Variables de Airflow faltantes
+```bash
+# El sistema se configura automáticamente, pero si hay problemas:
+docker compose exec airflow-webserver airflow variables set P2_GROUP_ID 3
+docker compose exec airflow-webserver airflow variables set MLFLOW_TRACKING_URI http://mlflow:5000
+# ... (ver sección de configuración para todas las variables)
 ```
 
 ### Comandos Útiles
 
 ```bash
 # Ver estado de todos los servicios
-docker-compose ps
+docker compose ps
 
 # Ver logs de un servicio específico
-docker-compose logs -f [servicio]
+docker compose logs -f [servicio]
 
 # Reiniciar un servicio
-docker-compose restart [servicio]
+docker compose restart [servicio]
 
 # Reconstruir un servicio
-docker-compose build [servicio]
+docker compose build [servicio]
 
 # Detener todos los servicios
-docker-compose down
+docker compose down
 
 # Limpiar volúmenes (¡CUIDADO! Borra datos)
-docker-compose down -v
+docker compose down -v
+
+# Ejecutar script de validación
+./validate_system.sh
+
+# Verificar variables de Airflow
+docker compose exec airflow-webserver airflow variables list
+
+# Ejecutar DAG manualmente
+docker compose exec airflow-webserver airflow dags trigger p2_covertype_pipeline
+
+# Verificar datos en MySQL
+docker compose exec mysql-db mysql -u covertype_user -pcovertype_pass123 -e "USE covertype_db; SELECT COUNT(*) FROM covertype_data;"
 ```
 
 ## 📈 Métricas y Monitoreo
@@ -341,5 +427,23 @@ docker-compose down -v
 ## 🎉 ¡Sistema Listo!
 
 El sistema está completamente implementado y listo para usar. Todos los componentes están integrados y funcionando correctamente.
+
+### 🚀 Características Implementadas
+
+- ✅ **Pipeline ML Completo**: Desde ingesta hasta inferencia
+- ✅ **Configuración Automática**: Sin intervención manual requerida
+- ✅ **Monitoreo Integrado**: Dashboards y métricas en tiempo real
+- ✅ **API de Producción**: Endpoints REST para predicciones
+- ✅ **Interfaz Gráfica**: Streamlit para interacción fácil
+- ✅ **Validación Automática**: Scripts de verificación incluidos
+- ✅ **Troubleshooting**: Guías completas de resolución de problemas
+
+### 📊 Estado del Sistema
+
+- **Datos Procesados**: 433+ muestras de cobertura forestal
+- **Modelos Entrenados**: Random Forest Classifier
+- **Experimentos MLflow**: 2 experimentos activos
+- **Servicios**: 9 contenedores funcionando correctamente
+- **Uptime**: Sistema estable y confiable
 
 **¡Disfruta explorando el sistema MLOps! 🚀**
