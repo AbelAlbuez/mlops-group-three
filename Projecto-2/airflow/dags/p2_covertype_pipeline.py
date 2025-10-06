@@ -15,6 +15,8 @@ import requests
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score
+import mlflow
+import mlflow.sklearn
 
 from airflow import DAG
 from airflow.models import Variable
@@ -38,6 +40,9 @@ MYSQL_PORT = int(Variable.get("MYSQL_PORT"))
 MYSQL_USER = Variable.get("MYSQL_USER")
 MYSQL_PASSWORD = Variable.get("MYSQL_PASSWORD")
 MYSQL_DATABASE = Variable.get("MYSQL_DATABASE")
+
+# MLflow Configuration
+MLFLOW_TRACKING_URI = Variable.get("MLFLOW_TRACKING_URI")
 
 # Crea carpeta para artefactos locales (persistencia simple)
 pathlib.Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
@@ -510,6 +515,68 @@ with DAG(
                 accuracy = accuracy_score(y_test, y_pred)
                 f1_macro = f1_score(y_test, y_pred, average='macro')
                 training_time = time.time() - start_time
+
+                # ========== INTEGRACIÓN MLFLOW ==========
+                
+                # Configurar tracking URI
+                mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+                
+                # Crear/seleccionar experimento
+                experiment_name = "covertype_classification"
+                mlflow.set_experiment(experiment_name)
+                
+                # Iniciar run de MLflow
+                with mlflow.start_run(run_name=f"batch_{current_batch_id}"):
+                    
+                    # Log de parámetros
+                    mlflow.log_params({
+                        "n_estimators": 150,
+                        "max_depth": "None",
+                        "random_state": RANDOM_STATE,
+                        "test_size": TEST_SIZE,
+                        "class_weight": "balanced",
+                        "min_sample_increment": MIN_SAMPLE_INCREMENT,
+                        "model_type": "RandomForestClassifier"
+                    })
+                    
+                    # Log de métricas
+                    mlflow.log_metrics({
+                        "accuracy": float(accuracy),
+                        "f1_macro": float(f1_macro),
+                        "n_samples_train": int(len(X_train)),
+                        "n_samples_test": int(len(X_test)),
+                        "n_features": int(X.shape[1]),
+                        "n_classes": int(y.nunique()),
+                        "training_time_seconds": float(training_time)
+                    })
+                    
+                    # Log del modelo
+                    signature = mlflow.models.infer_signature(X_train, y_train)
+                    mlflow.sklearn.log_model(
+                        sk_model=model,
+                        artifact_path="model",
+                        registered_model_name="covertype_classifier",
+                        signature=signature
+                    )
+                    
+                    # Log de tags
+                    mlflow.set_tags({
+                        "batch_id": current_batch_id,
+                        "model_type": "RandomForestClassifier",
+                        "framework": "scikit-learn",
+                        "dataset": "covertype",
+                        "training_mode": "incremental",
+                        "team": "grupo_3"
+                    })
+                    
+                    # Obtener run_id para referencia
+                    run_id = mlflow.active_run().info.run_id
+                    print(f"✅ MLflow run_id: {run_id}")
+                    
+                    # Guardar en XCom
+                    context["ti"].xcom_push(key="mlflow_run_id", value=run_id)
+                
+                # ========== FIN INTEGRACIÓN MLFLOW ==========
 
                 # Prepare hyperparameters
                 hyperparams = {
