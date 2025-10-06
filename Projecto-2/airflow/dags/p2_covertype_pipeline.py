@@ -517,63 +517,68 @@ with DAG(
 
                 # ========== INTEGRACIÓN MLFLOW ==========
                 
-                # Configurar tracking URI
-                mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-                
-                # Crear/seleccionar experimento
-                experiment_name = "covertype_classification"
-                mlflow.set_experiment(experiment_name)
-                
-                # Iniciar run de MLflow
-                with mlflow.start_run(run_name=f"batch_{current_batch_id}"):
+                try:
+                    # Configurar tracking URI
+                    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
                     
-                    # Log de parámetros
-                    mlflow.log_params({
-                        "n_estimators": 150,
-                        "max_depth": "None",
-                        "random_state": RANDOM_STATE,
-                        "test_size": TEST_SIZE,
-                        "class_weight": "balanced",
-                        "min_sample_increment": MIN_SAMPLE_INCREMENT,
-                        "model_type": "RandomForestClassifier"
-                    })
+                    # Crear/seleccionar experimento
+                    experiment_name = "covertype_classification"
+                    mlflow.set_experiment(experiment_name)
                     
-                    # Log de métricas
-                    mlflow.log_metrics({
-                        "accuracy": float(accuracy),
-                        "f1_macro": float(f1_macro),
-                        "n_samples_train": int(len(X_train)),
-                        "n_samples_test": int(len(X_test)),
-                        "n_features": int(X.shape[1]),
-                        "n_classes": int(y.nunique()),
-                        "training_time_seconds": float(training_time)
-                    })
+                    # Iniciar run de MLflow
+                    with mlflow.start_run(run_name=f"batch_{current_batch_id}"):
+                        
+                        # Log de parámetros
+                        mlflow.log_params({
+                            "n_estimators": 150,
+                            "max_depth": "None",
+                            "random_state": RANDOM_STATE,
+                            "test_size": TEST_SIZE,
+                            "class_weight": "balanced",
+                            "min_sample_increment": MIN_SAMPLE_INCREMENT,
+                            "model_type": "RandomForestClassifier"
+                        })
+                        
+                        # Log de métricas
+                        mlflow.log_metrics({
+                            "accuracy": float(accuracy),
+                            "f1_macro": float(f1_macro),
+                            "n_samples_train": int(len(X_train)),
+                            "n_samples_test": int(len(X_test)),
+                            "n_features": int(X.shape[1]),
+                            "n_classes": int(y.nunique()),
+                            "training_time_seconds": float(training_time)
+                        })
+                        
+                        # Log del modelo (sin signature para evitar problemas)
+                        mlflow.sklearn.log_model(
+                            sk_model=model,
+                            artifact_path="model"
+                        )
+                        
+                        # Log de tags
+                        mlflow.set_tags({
+                            "batch_id": current_batch_id,
+                            "model_type": "RandomForestClassifier",
+                            "framework": "scikit-learn",
+                            "dataset": "covertype",
+                            "training_mode": "incremental",
+                            "team": "grupo_3"
+                        })
+                        
+                        # Obtener run_id para referencia
+                        run_id = mlflow.active_run().info.run_id
+                        print(f"✅ MLflow run_id: {run_id}")
+                        
+                        # Guardar en XCom
+                        context["ti"].xcom_push(key="mlflow_run_id", value=run_id)
                     
-                    # Log del modelo
-                    signature = mlflow.models.infer_signature(X_train, y_train)
-                    mlflow.sklearn.log_model(
-                        sk_model=model,
-                        artifact_path="model",
-                        registered_model_name="covertype_classifier",
-                        signature=signature
-                    )
+                    print("✅ MLflow integration completed successfully")
                     
-                    # Log de tags
-                    mlflow.set_tags({
-                        "batch_id": current_batch_id,
-                        "model_type": "RandomForestClassifier",
-                        "framework": "scikit-learn",
-                        "dataset": "covertype",
-                        "training_mode": "incremental",
-                        "team": "grupo_3"
-                    })
-                    
-                    # Obtener run_id para referencia
-                    run_id = mlflow.active_run().info.run_id
-                    print(f"✅ MLflow run_id: {run_id}")
-                    
-                    # Guardar en XCom
-                    context["ti"].xcom_push(key="mlflow_run_id", value=run_id)
+                except Exception as mlflow_error:
+                    print(f"⚠️ MLflow integration failed: {mlflow_error}")
+                    print("Continuing with training without MLflow logging...")
+                    # No re-raise the exception, just continue
                 
                 # ========== FIN INTEGRACIÓN MLFLOW ==========
 
