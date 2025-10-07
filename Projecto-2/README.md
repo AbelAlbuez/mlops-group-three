@@ -9,6 +9,14 @@
 https://www.youtube.com/watch?v=prx6Lma1Ss4
 
 
+# URL Desplegada
+
+- UI - http://10.43.100.87:8003/
+- Backend - http://10.43.100.87:8000/docs
+- MLFLow - http://10.43.100.87:8008/#/experiments
+- AirFlow - http://10.43.100.87:8080/home
+- MinIO - http://10.43.100.87:8011/
+
 ## 📋 Descripción del Proyecto
 
 Sistema completo de MLOps para clasificación de tipos de cobertura forestal que incluye:
