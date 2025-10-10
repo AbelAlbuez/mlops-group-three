@@ -108,14 +108,14 @@ echo "3. VERIFICANDO CONECTIVIDAD DE BASE DE DATOS"
 echo "============================================"
 
 # Verificar MySQL (covertype)
-if docker compose exec projecto-2-mysql-db-1 mysql -u covertype_user -pcovertype_pass123 -e "SELECT 1;" covertype_db > /dev/null 2>&1; then
+if docker compose exec mysql-db mysql -u covertype_user -p covertype_pass123 -e "SELECT 1;" covertype_db > /dev/null 2>&1; then
     print_status "OK" "MySQL (covertype): Conectividad OK"
 else
     print_status "ERROR" "MySQL (covertype): Error de conexión"
 fi
 
 # Verificar MySQL (mlflow)
-if docker compose exec projecto-2-mlflow-db-1 mysql -u mlflow -pmlflow -e "SELECT 1;" mlflow > /dev/null 2>&1; then
+if docker compose exec mlflow-db mysql -u mlflow -pmlflow -e "SELECT 1;" mlflow > /dev/null 2>&1; then
     print_status "OK" "MySQL (mlflow): Conectividad OK"
 else
     print_status "ERROR" "MySQL (mlflow): Error de conexión"
@@ -144,7 +144,7 @@ echo "5. VERIFICANDO MINIO Y ARTIFACTS"
 echo "==============================="
 
 # Verificar bucket en MinIO
-if docker compose exec projeto-2-minio-1 mc ls myminio/ | grep -q "mlflow"; then
+if docker compose exec projecto-2-minio-1 mc ls myminio/ | grep -q "mlflow"; then
     print_status "OK" "Bucket 'mlflow' existe en MinIO"
 else
     print_status "WARNING" "Bucket 'mlflow' no encontrado"
