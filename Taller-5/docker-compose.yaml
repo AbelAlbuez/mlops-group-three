@@ -1,0 +1,94 @@
+services:
+  mysql-db:
+    image: mysql:8.0
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mlflow:
+    image: python:3.11-slim
+    container_name: mlflow
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    command: >
+      sh -c "apt-get update &&
+      apt-get install -y --no-install-recommends curl &&
+      pip install mlflow==3.2.0 pymysql==1.1.0 &&
+      sleep 20 &&
+      exec mlflow server
+      --backend-store-uri ${MLFLOW_BACKEND_URI}
+      --artifacts-destination ${MLFLOW_ARTIFACTS_PATH}
+      --serve-artifacts
+      --host 0.0.0.0
+      --port 5000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://0.0.0.0:5000
+    ports:
+      - "${MLFLOW_PORT}:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  seed-train:
+    image: python:3.11-slim
+    container_name: seed-train
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ./app:/app:ro             
+    env_file:
+      - .env
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000 
+    command: >
+      bash -lc "set -eux; python -m pip install --no-cache-dir mlflow==3.2.0 scikit-learn==1.4.2 pandas==2.2.2 pymysql==1.1.0 joblib==1.4.2 requests==2.32.3 &&
+      python /app/train_standalone.py"
+    restart: "no"
+
+  inference-api:
+    image: ${INFER_IMAGE}
+    container_name: inference-api
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    ports:
+      - "${INFERENCE_PORT}:8000"
+    env_file:
+      - .env
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  mlflow_data:
