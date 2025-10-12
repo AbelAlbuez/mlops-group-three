@@ -59,6 +59,7 @@ services:
   # API de inferencia sin límites de recursos
   inference-api:
     image: ogaston/inference-g3:latest
+    platform: linux/amd64
     container_name: inference-api-simple
     depends_on:
       mlflow:

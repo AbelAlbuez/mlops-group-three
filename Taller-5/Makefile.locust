@@ -6,6 +6,7 @@
 # Variables
 COMPOSE_MINIMAL = docker-compose.locust-minimal.yml
 COMPOSE_FULL = docker-compose.locust.yml
+COMPOSE_OFFICIAL = docker-compose.locust-official.yml
 RESULTS_DIR = load_test_results
 
 # Colores
@@ -29,10 +30,17 @@ up-full: ## Iniciar servicios completos (con MySQL, MLflow)
 	docker compose -f $(COMPOSE_FULL) up -d
 	@echo "$(GREEN)✅ Servicios completos iniciados$(NC)"
 
+up-official: ## Iniciar con imagen oficial ogaston/inference-g3:latest
+	@echo "$(GREEN)Iniciando con imagen oficial...$(NC)"
+	docker compose -f $(COMPOSE_OFFICIAL) up -d
+	@echo "$(GREEN)✅ Locust UI: http://localhost:8089$(NC)"
+	@echo "$(GREEN)✅ API: http://localhost:8000$(NC)"
+
 down: ## Detener servicios
 	@echo "$(YELLOW)Deteniendo servicios...$(NC)"
 	docker compose -f $(COMPOSE_MINIMAL) down
 	docker compose -f $(COMPOSE_FULL) down 2>/dev/null || true
+	docker compose -f $(COMPOSE_OFFICIAL) down 2>/dev/null || true
 	@echo "$(GREEN)✅ Servicios detenidos$(NC)"
 
 logs: ## Ver logs de todos los servicios

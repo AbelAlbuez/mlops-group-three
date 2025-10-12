@@ -56,11 +56,10 @@ services:
     networks:
       - locust-network
 
-  # API de inferencia con límites de recursos
+  # API de inferencia con límites de recursos usando imagen oficial
   inference-api:
-    build:
-      context: .
-      dockerfile: Dockerfile.inference
+    image: ogaston/inference-g3:latest
+    platform: linux/amd64
     container_name: inference-api-locust
     depends_on:
       mlflow:

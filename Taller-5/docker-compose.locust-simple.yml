@@ -1,14 +1,21 @@
 version: '3.8'
 
 services:
+  # API de inferencia usando la imagen oficial ogaston/inference-g3:latest
   inference-api:
     image: ogaston/inference-g3:latest
     platform: linux/amd64
-    container_name: inference-api-locust-minimal
+    container_name: inference-api-simple
     ports:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      # Configuración para funcionar sin MLflow
+      - MLFLOW_TRACKING_URI=http://localhost:5000
+      - MYSQL_HOST=localhost
+      - MYSQL_USER=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_DATABASE=test
     deploy:
       resources:
         limits:
@@ -22,9 +29,10 @@ services:
     networks:
       - locust-network
 
+  # Locust Master
   locust-master:
     image: locustio/locust:latest
-    container_name: locust-master-minimal
+    container_name: locust-master-simple
     ports:
       - "8089:8089"
     volumes:
@@ -38,6 +46,7 @@ services:
     networks:
       - locust-network
 
+  # Locust Worker
   locust-worker:
     image: locustio/locust:latest
     volumes:
