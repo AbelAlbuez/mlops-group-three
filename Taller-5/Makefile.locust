@@ -4,9 +4,7 @@
 .PHONY: help up up-full down logs stats test-quick test-medium test-load clean status
 
 # Variables
-COMPOSE_MINIMAL = docker-compose.locust-minimal.yml
-COMPOSE_FULL = docker-compose.locust.yml
-COMPOSE_OFFICIAL = docker-compose.locust-official.yml
+COMPOSE_FILE = docker-compose.locust-official.yml
 RESULTS_DIR = load_test_results
 
 # Colores
@@ -19,33 +17,20 @@ help: ## Mostrar ayuda
 	@echo "$(GREEN)Comandos disponibles:$(NC)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2}'
 
-up: ## Iniciar servicios (minimal)
-	@echo "$(GREEN)Iniciando servicios minimales...$(NC)"
-	docker compose -f $(COMPOSE_MINIMAL) up -d
-	@echo "$(GREEN)✅ Locust UI: http://localhost:8089$(NC)"
-	@echo "$(GREEN)✅ API: http://localhost:8000$(NC)"
-
-up-full: ## Iniciar servicios completos (con MySQL, MLflow)
-	@echo "$(GREEN)Iniciando servicios completos...$(NC)"
-	docker compose -f $(COMPOSE_FULL) up -d
-	@echo "$(GREEN)✅ Servicios completos iniciados$(NC)"
-
-up-official: ## Iniciar con imagen oficial ogaston/inference-g3:latest
-	@echo "$(GREEN)Iniciando con imagen oficial...$(NC)"
-	docker compose -f $(COMPOSE_OFFICIAL) up -d
+up: ## Iniciar servicios con imagen oficial ogaston/inference-g3:latest
+	@echo "$(GREEN)Iniciando servicios con imagen oficial...$(NC)"
+	docker compose -f $(COMPOSE_FILE) up -d
 	@echo "$(GREEN)✅ Locust UI: http://localhost:8089$(NC)"
 	@echo "$(GREEN)✅ API: http://localhost:8000$(NC)"
 
 down: ## Detener servicios
 	@echo "$(YELLOW)Deteniendo servicios...$(NC)"
-	docker compose -f $(COMPOSE_MINIMAL) down
-	docker compose -f $(COMPOSE_FULL) down 2>/dev/null || true
-	docker compose -f $(COMPOSE_OFFICIAL) down 2>/dev/null || true
+	docker compose -f $(COMPOSE_FILE) down
 	@echo "$(GREEN)✅ Servicios detenidos$(NC)"
 
 logs: ## Ver logs de todos los servicios
 	@echo "$(GREEN)Mostrando logs...$(NC)"
-	docker compose -f $(COMPOSE_MINIMAL) logs -f
+	docker compose -f $(COMPOSE_FILE) logs -f
 
 stats: ## Ver estadísticas de recursos
 	@echo "$(GREEN)Estadísticas de recursos:$(NC)"
@@ -69,14 +54,13 @@ test-stress: ## Prueba de estrés (10000 usuarios, 20min)
 
 clean: ## Limpiar contenedores y resultados
 	@echo "$(YELLOW)Limpiando...$(NC)"
-	docker compose -f $(COMPOSE_MINIMAL) down -v
-	docker compose -f $(COMPOSE_FULL) down -v 2>/dev/null || true
+	docker compose -f $(COMPOSE_FILE) down -v
 	rm -rf $(RESULTS_DIR)/*
 	@echo "$(GREEN)✅ Limpieza completada$(NC)"
 
 status: ## Ver estado de servicios
 	@echo "$(GREEN)Estado de contenedores:$(NC)"
-	@docker compose -f $(COMPOSE_MINIMAL) ps
+	@docker compose -f $(COMPOSE_FILE) ps
 	@echo ""
 	@echo "$(GREEN)Health checks:$(NC)"
 	@curl -s http://localhost:8000/health >/dev/null && echo "$(GREEN)✅ API OK$(NC)" || echo "$(RED)❌ API DOWN$(NC)"
@@ -85,8 +69,8 @@ status: ## Ver estado de servicios
 # Comandos adicionales útiles
 scale: ## Escalar workers (uso: make scale N=3)
 	@echo "$(GREEN)Escalando workers a $(N) instancias...$(NC)"
-	docker compose -f $(COMPOSE_MINIMAL) up -d --scale locust-worker=$(N)
+	docker compose -f $(COMPOSE_FILE) up -d --scale locust-worker=$(N)
 
 restart-api: ## Reiniciar solo la API
 	@echo "$(GREEN)Reiniciando API...$(NC)"
-	docker compose -f $(COMPOSE_MINIMAL) restart inference-api
+	docker compose -f $(COMPOSE_FILE) restart inference-api
