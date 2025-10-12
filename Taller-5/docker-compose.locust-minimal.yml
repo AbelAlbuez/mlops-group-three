@@ -2,9 +2,7 @@ version: '3.8'
 
 services:
   inference-api:
-    build:
-      context: .
-      dockerfile: Dockerfile.inference
+    image: ogaston/inference-g3:latest
     container_name: inference-api-locust-minimal
     ports:
       - "8000:8000"

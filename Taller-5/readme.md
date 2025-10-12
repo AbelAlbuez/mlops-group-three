@@ -19,6 +19,32 @@ Taller de MLOps enfocado en realizar **pruebas de carga** a una API de inferenci
 
 ---
 
+## 🐳 Imagen Docker
+
+### Imagen Publicada en DockerHub
+
+✅ **Imagen**: `ogaston/inference-g3:latest`  
+🔗 **URL**: https://hub.docker.com/r/ogaston/inference-g3
+
+**Características de la imagen:**
+- **Modelo**: Covertype Classification (12 features)
+- **Framework**: FastAPI + scikit-learn
+- **Puerto**: 8000
+- **Health Check**: `/health`
+- **API Docs**: `/docs` (Swagger UI)
+- **Arquitecturas**: AMD64, ARM64
+
+**Uso directo:**
+```bash
+# Ejecutar directamente
+docker run -p 8000:8000 ogaston/inference-g3:latest
+
+# Verificar funcionamiento
+curl http://localhost:8000/health
+```
+
+---
+
 ## 📁 Estructura del Proyecto
 
 ```

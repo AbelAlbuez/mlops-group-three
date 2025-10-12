@@ -58,9 +58,7 @@ services:
 
   # API de inferencia sin límites de recursos
   inference-api:
-    build:
-      context: .
-      dockerfile: Dockerfile.inference
+    image: ogaston/inference-g3:latest
     container_name: inference-api-simple
     depends_on:
       mlflow:
