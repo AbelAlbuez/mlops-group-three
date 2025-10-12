@@ -23,7 +23,7 @@ export API_MEMORY_LIMIT=$MEM
 
 # Reiniciar API con nuevos recursos
 echo "🔄 Reiniciando API con nuevos recursos..."
-docker compose -f docker-compose.locust-minimal.yml up -d --force-recreate inference-api
+docker compose -f docker-compose.locust-official.yml up -d --force-recreate inference-api
 
 echo "✅ Recursos actualizados"
 echo "   Esperando que la API reinicie..."

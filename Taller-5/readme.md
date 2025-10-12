@@ -51,7 +51,7 @@ curl http://localhost:8000/health
 Taller-5/
 ├── docker-compose.yaml                  # Compose principal (NO modificar)
 ├── docker-compose.locust.yml            # ✨ Compose para Locust (OPTIMIZADO)
-├── docker-compose.locust-minimal.yml    # ✨ Compose minimalista (NUEVO)
+├── docker-compose.locust-official.yml    # ✨ Compose minimalista (NUEVO)
 ├── docker-compose.inference-simple.yml  # ✨ Compose simple
 ├── .env                                 # Variables originales (NO modificar)
 ├── env.locust                          # ✨ Variables para Locust
@@ -92,7 +92,7 @@ Taller-5/
 
 #### **1. Configuración Minimalista (Recomendada)**
 ```bash
-# Archivo: docker-compose.locust-minimal.yml
+# Archivo: docker-compose.locust-official.yml
 # Servicios: 3 (inference-api, locust-master, locust-worker)
 # Tiempo de inicio: ~30 segundos
 # Uso: Desarrollo y pruebas rápidas
@@ -585,7 +585,7 @@ ports:
 
 - **`set_resources.sh`**: Script para cambiar recursos dinámicamente
 - **`test_complete.sh`**: Suite completa de pruebas automatizada
-- **`docker-compose.locust-minimal.yml`**: Configuración minimalista optimizada
+- **`docker-compose.locust-official.yml`**: Configuración minimalista optimizada
 
 ---
 

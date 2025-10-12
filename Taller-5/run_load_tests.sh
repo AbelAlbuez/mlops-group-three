@@ -54,7 +54,7 @@ run_test() {
     
     # Levantar servicios
     log "Iniciando servicios..."
-    docker compose -f docker-compose.locust-minimal.yml up -d
+    docker compose -f docker-compose.locust-official.yml up -d
     
     # Esperar 30 segundos
     log "Esperando que los servicios estén listos..."
@@ -70,7 +70,7 @@ run_test() {
     log "Ejecutando Locust..."
     local test_name="test_${name}_${cpu}cpu_${mem}mem_${time}"
     
-    docker compose -f docker-compose.locust-minimal.yml exec -T locust-master locust \
+    docker compose -f docker-compose.locust-official.yml exec -T locust-master locust \
         --locustfile=/mnt/locust/locustfile.py \
         --host=http://inference-api:8000 \
         --users="$users" \
