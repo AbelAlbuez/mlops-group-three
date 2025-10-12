@@ -1,203 +1,84 @@
-# Makefile para gestión de pruebas de carga con Locust
+# Makefile simplificado para pruebas de carga con Locust
 # Uso: make -f Makefile.locust [target]
 
-# Variables configurables
-IMAGE ?= ogaston/inference-g3:latest
-DIR ?= /Users/abelalbuez/Documents/Maestria\ /Segundo\ Semestre/MLOPS/mlops-group-three/Taller-5
-COMPOSE_FILE ?= docker-compose.locust.yml
-SIMPLE_COMPOSE ?= docker-compose.inference-simple.yml
-RESULTS_DIR ?= load_test_results
+.PHONY: help up up-full down logs stats test-quick test-medium test-load clean status
 
-# Detectar si usar docker-compose (v1) o docker compose (v2)
-DOCKER_COMPOSE := $(shell command -v docker-compose 2>/dev/null || echo "docker compose")
+# Variables
+COMPOSE_MINIMAL = docker-compose.locust-minimal.yml
+COMPOSE_FULL = docker-compose.locust.yml
+RESULTS_DIR = load_test_results
 
-# Colores para output
+# Colores
 GREEN = \033[0;32m
 YELLOW = \033[1;33m
 RED = \033[0;31m
-NC = \033[0m # No Color
+NC = \033[0m
 
-.PHONY: help up down logs stats scale-2 scale-3 test-quick test-medium test-load clean status
-
-# Target por defecto
 help: ## Mostrar ayuda
-	@echo "$(GREEN)Makefile para Pruebas de Carga con Locust$(NC)"
-	@echo ""
-	@echo "Uso: make -f Makefile.locust [target]"
-	@echo ""
-	@echo "Targets disponibles:"
-	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "Variables:"
-	@echo "  IMAGE=$(IMAGE)"
-	@echo "  DIR=$(DIR)"
-	@echo "  COMPOSE_FILE=$(COMPOSE_FILE)"
-	@echo "  RESULTS_DIR=$(RESULTS_DIR)"
+	@echo "$(GREEN)Comandos disponibles:$(NC)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-15s$(NC) %s\n", $$1, $$2}'
 
-# Gestión de servicios
-up: ## Iniciar todos los servicios de Locust
-	@echo "$(GREEN)Iniciando servicios de Locust...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d
-	@echo "$(GREEN)Servicios iniciados. Web UI disponible en: http://localhost:8089$(NC)"
+up: ## Iniciar servicios (minimal)
+	@echo "$(GREEN)Iniciando servicios minimales...$(NC)"
+	docker compose -f $(COMPOSE_MINIMAL) up -d
+	@echo "$(GREEN)✅ Locust UI: http://localhost:8089$(NC)"
+	@echo "$(GREEN)✅ API: http://localhost:8000$(NC)"
 
-down: ## Detener todos los servicios
+up-full: ## Iniciar servicios completos (con MySQL, MLflow)
+	@echo "$(GREEN)Iniciando servicios completos...$(NC)"
+	docker compose -f $(COMPOSE_FULL) up -d
+	@echo "$(GREEN)✅ Servicios completos iniciados$(NC)"
+
+down: ## Detener servicios
 	@echo "$(YELLOW)Deteniendo servicios...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) down -v
-	@echo "$(GREEN)Servicios detenidos$(NC)"
+	docker compose -f $(COMPOSE_MINIMAL) down
+	docker compose -f $(COMPOSE_FULL) down 2>/dev/null || true
+	@echo "$(GREEN)✅ Servicios detenidos$(NC)"
 
-restart: down up ## Reiniciar todos los servicios
-
-# Monitoreo
-logs: ## Mostrar logs de todos los servicios
+logs: ## Ver logs de todos los servicios
 	@echo "$(GREEN)Mostrando logs...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) logs -f
+	docker compose -f $(COMPOSE_MINIMAL) logs -f
 
-logs-api: ## Mostrar logs solo de la API de inferencia
-	@echo "$(GREEN)Mostrando logs de la API...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) logs -f inference-api
+stats: ## Ver estadísticas de recursos
+	@echo "$(GREEN)Estadísticas de recursos:$(NC)"
+	docker stats --no-stream
 
-logs-locust: ## Mostrar logs solo de Locust
-	@echo "$(GREEN)Mostrando logs de Locust...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) logs -f locust-master locust-worker
-
-stats: ## Mostrar estadísticas de los contenedores
-	@echo "$(GREEN)Estadísticas de contenedores:$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) ps
-	@echo ""
-	@echo "$(GREEN)Uso de recursos:$(NC)"
-	@docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" $(shell cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) ps -q)
-
-status: ## Verificar estado de los servicios
-	@echo "$(GREEN)Verificando estado de los servicios...$(NC)"
-	@echo ""
-	@echo "$(YELLOW)Contenedores:$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) ps
-	@echo ""
-	@echo "$(YELLOW)Health checks:$(NC)"
-	@echo -n "API de inferencia: "
-	@curl -s http://localhost:8000/health >/dev/null && echo "$(GREEN)✓ OK$(NC)" || echo "$(RED)✗ ERROR$(NC)"
-	@echo -n "MLflow: "
-	@curl -s http://localhost:5002/health >/dev/null && echo "$(GREEN)✓ OK$(NC)" || echo "$(RED)✗ ERROR$(NC)"
-	@echo -n "Locust Web UI: "
-	@curl -s http://localhost:8089 >/dev/null && echo "$(GREEN)✓ OK$(NC)" || echo "$(RED)✗ ERROR$(NC)"
-
-# Escalado
-scale-2: ## Escalar workers a 2 instancias
-	@echo "$(GREEN)Escalando workers a 2 instancias...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d --scale locust-worker=2
-	@echo "$(GREEN)Workers escalados$(NC)"
-
-scale-3: ## Escalar workers a 3 instancias
-	@echo "$(GREEN)Escalando workers a 3 instancias...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d --scale locust-worker=3
-	@echo "$(GREEN)Workers escalados$(NC)"
-
-scale-5: ## Escalar workers a 5 instancias
-	@echo "$(GREEN)Escalando workers a 5 instancias...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d --scale locust-worker=5
-	@echo "$(GREEN)Workers escalados$(NC)"
-
-# Pruebas específicas
-test-quick: ## Ejecutar prueba rápida (500 usuarios, 5 minutos)
+test-quick: ## Prueba rápida (500 usuarios, 5min)
 	@echo "$(GREEN)Ejecutando prueba rápida...$(NC)"
-	@cd $(DIR) && ./run_load_tests.sh --quick
+	./run_load_tests.sh quick
 
-test-medium: ## Ejecutar prueba media (2000 usuarios, 10 minutos)
+test-medium: ## Prueba media (2000 usuarios, 10min)
 	@echo "$(GREEN)Ejecutando prueba media...$(NC)"
-	@cd $(DIR) && ./run_load_tests.sh --medium
+	./run_load_tests.sh medium
 
-test-load: ## Ejecutar todas las pruebas de carga
-	@echo "$(GREEN)Ejecutando todas las pruebas de carga...$(NC)"
-	@cd $(DIR) && ./run_load_tests.sh --full
+test-load: ## Prueba de carga (5000 usuarios, 15min)
+	@echo "$(GREEN)Ejecutando prueba de carga...$(NC)"
+	./run_load_tests.sh load
 
-test-custom: ## Ejecutar prueba personalizada (usar: make test-custom USERS=1000 TIME=10m)
-	@echo "$(GREEN)Ejecutando prueba personalizada...$(NC)"
-	@cd $(DIR) && ./run_load_tests.sh --users $(USERS) --time $(TIME)
+test-stress: ## Prueba de estrés (10000 usuarios, 20min)
+	@echo "$(GREEN)Ejecutando prueba de estrés...$(NC)"
+	./run_load_tests.sh stress
 
-# Pruebas con configuraciones específicas
-test-025: ## Prueba con 0.25 CPU y 256M RAM
-	@echo "$(GREEN)Ejecutando prueba con 0.25 CPU y 256M RAM...$(NC)"
-	@cd $(DIR) && ./run_load_tests.sh --config 0.25/256M
+clean: ## Limpiar contenedores y resultados
+	@echo "$(YELLOW)Limpiando...$(NC)"
+	docker compose -f $(COMPOSE_MINIMAL) down -v
+	docker compose -f $(COMPOSE_FULL) down -v 2>/dev/null || true
+	rm -rf $(RESULTS_DIR)/*
+	@echo "$(GREEN)✅ Limpieza completada$(NC)"
 
-test-05: ## Prueba con 0.5 CPU y 512M RAM
-	@echo "$(GREEN)Ejecutando prueba con 0.5 CPU y 512M RAM...$(NC)"
-	@cd $(DIR) && ./run_load_tests.sh --config 0.5/512M
-
-test-1: ## Prueba con 1.0 CPU y 1G RAM
-	@echo "$(GREEN)Ejecutando prueba con 1.0 CPU y 1G RAM...$(NC)"
-	@cd $(DIR) && ./run_load_tests.sh --config 1.0/1G
-
-test-2: ## Prueba con 2.0 CPU y 2G RAM
-	@echo "$(GREEN)Ejecutando prueba con 2.0 CPU y 2G RAM...$(NC)"
-	@cd $(DIR) && ./run_load_tests.sh --config 2.0/2G
-
-# Servicios simples (sin Locust)
-simple-up: ## Iniciar solo servicios básicos (sin Locust)
-	@echo "$(GREEN)Iniciando servicios básicos...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(SIMPLE_COMPOSE) up -d
-	@echo "$(GREEN)Servicios básicos iniciados$(NC)"
-
-simple-down: ## Detener servicios básicos
-	@echo "$(YELLOW)Deteniendo servicios básicos...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(SIMPLE_COMPOSE) down -v
-	@echo "$(GREEN)Servicios básicos detenidos$(NC)"
-
-simple-logs: ## Mostrar logs de servicios básicos
-	@echo "$(GREEN)Mostrando logs de servicios básicos...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(SIMPLE_COMPOSE) logs -f
-
-# Limpieza
-clean: ## Limpiar contenedores y volúmenes
-	@echo "$(YELLOW)Limpiando contenedores y volúmenes...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(COMPOSE_FILE) down -v --remove-orphans
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(SIMPLE_COMPOSE) down -v --remove-orphans
-	@docker system prune -f
-	@echo "$(GREEN)Limpieza completada$(NC)"
-
-clean-results: ## Limpiar solo los resultados de pruebas
-	@echo "$(YELLOW)Limpiando resultados de pruebas...$(NC)"
-	@rm -rf $(DIR)/$(RESULTS_DIR)/*
-	@echo "$(GREEN)Resultados limpiados$(NC)"
-
-# Desarrollo
-dev: ## Modo desarrollo (servicios básicos + logs)
-	@echo "$(GREEN)Iniciando modo desarrollo...$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(SIMPLE_COMPOSE) up -d
-	@echo "$(GREEN)Servicios iniciados. Presiona Ctrl+C para detener logs$(NC)"
-	@cd $(DIR) && $(DOCKER_COMPOSE) -f $(SIMPLE_COMPOSE) logs -f
-
-# Información
-info: ## Mostrar información del sistema
-	@echo "$(GREEN)Información del sistema:$(NC)"
+status: ## Ver estado de servicios
+	@echo "$(GREEN)Estado de contenedores:$(NC)"
+	@docker compose -f $(COMPOSE_MINIMAL) ps
 	@echo ""
-	@echo "$(YELLOW)Directorio de trabajo:$(NC) $(DIR)"
-	@echo "$(YELLOW)Archivo compose:$(NC) $(COMPOSE_FILE)"
-	@echo "$(YELLOW)Imagen de inferencia:$(NC) $(IMAGE)"
-	@echo "$(YELLOW)Directorio de resultados:$(NC) $(RESULTS_DIR)"
-	@echo ""
-	@echo "$(YELLOW)Servicios disponibles:$(NC)"
-	@echo "  - API de inferencia: http://localhost:8000"
-	@echo "  - MLflow: http://localhost:5002"
-	@echo "  - Locust Web UI: http://localhost:8089"
-	@echo ""
-	@echo "$(YELLOW)Comandos útiles:$(NC)"
-	@echo "  - Ver logs: make logs"
-	@echo "  - Ver estado: make status"
-	@echo "  - Prueba rápida: make test-quick"
-	@echo "  - Limpiar: make clean"
+	@echo "$(GREEN)Health checks:$(NC)"
+	@curl -s http://localhost:8000/health >/dev/null && echo "$(GREEN)✅ API OK$(NC)" || echo "$(RED)❌ API DOWN$(NC)"
+	@curl -s http://localhost:8089 >/dev/null && echo "$(GREEN)✅ Locust OK$(NC)" || echo "$(RED)❌ Locust DOWN$(NC)"
 
-# Verificación de dependencias
-check-deps: ## Verificar dependencias necesarias
-	@echo "$(GREEN)Verificando dependencias...$(NC)"
-	@command -v docker >/dev/null 2>&1 || { echo "$(RED)Docker no está instalado$(NC)"; exit 1; }
-	@command -v $(DOCKER_COMPOSE) >/dev/null 2>&1 || docker compose version >/dev/null 2>&1 || { echo "$(RED)Docker Compose no está instalado$(NC)"; exit 1; }
-	@command -v curl >/dev/null 2>&1 || { echo "$(RED)curl no está instalado$(NC)"; exit 1; }
-	@echo "$(GREEN)Todas las dependencias están disponibles$(NC)"
+# Comandos adicionales útiles
+scale: ## Escalar workers (uso: make scale N=3)
+	@echo "$(GREEN)Escalando workers a $(N) instancias...$(NC)"
+	docker compose -f $(COMPOSE_MINIMAL) up -d --scale locust-worker=$(N)
 
-# Instalación de dependencias (macOS)
-install-deps: ## Instalar dependencias en macOS
-	@echo "$(GREEN)Instalando dependencias...$(NC)"
-	@command -v brew >/dev/null 2>&1 || { echo "$(RED)Homebrew no está instalado$(NC)"; exit 1; }
-	@brew install docker $(DOCKER_COMPOSE) curl
-	@echo "$(GREEN)Dependencias instaladas$(NC)"
+restart-api: ## Reiniciar solo la API
+	@echo "$(GREEN)Reiniciando API...$(NC)"
+	docker compose -f $(COMPOSE_MINIMAL) restart inference-api

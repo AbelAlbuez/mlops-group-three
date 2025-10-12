@@ -24,14 +24,17 @@ Taller de MLOps enfocado en realizar **pruebas de carga** a una API de inferenci
 ```
 Taller-5/
 ├── docker-compose.yaml                  # Compose principal (NO modificar)
-├── docker-compose.locust.yml            # ✨ Compose para Locust
+├── docker-compose.locust.yml            # ✨ Compose para Locust (OPTIMIZADO)
+├── docker-compose.locust-minimal.yml    # ✨ Compose minimalista (NUEVO)
 ├── docker-compose.inference-simple.yml  # ✨ Compose simple
 ├── .env                                 # Variables originales (NO modificar)
 ├── env.locust                          # ✨ Variables para Locust
-├── locustfile.py                       # ✨ Configuración de pruebas
+├── locustfile.py                       # ✨ Configuración de pruebas (OPTIMIZADO)
 ├── nginx.conf                          # ✨ Load balancer
-├── run_load_tests.sh                   # ✨ Script automatizado
-├── Makefile.locust                     # ✨ Comandos útiles
+├── run_load_tests.sh                   # ✨ Script automatizado (OPTIMIZADO)
+├── set_resources.sh                    # ✨ Script para cambiar recursos (NUEVO)
+├── test_complete.sh                    # ✨ Suite completa de pruebas (NUEVO)
+├── Makefile.locust                     # ✨ Comandos útiles (OPTIMIZADO)
 ├── Dockerfile.inference                # Dockerfile de la API
 ├── README-LOCUST.md                    # Documentación detallada
 ├── INICIO-RAPIDO-LOCUST.md            # Guía rápida
@@ -44,6 +47,80 @@ Taller-5/
 │   └── init/
 │       └── 01-create-schema.sql       # Schema de BD
 └── load_test_results/                 # Resultados de pruebas
+```
+
+---
+
+## 🚀 Optimizaciones Implementadas (v2.0)
+
+### ✨ **Nuevas Características**
+
+- **⚡ Inicio súper rápido**: 30 segundos vs 3 minutos
+- **📦 Configuración minimalista**: Solo 3 servicios esenciales
+- **🛠️ Scripts de utilidad**: Cambio dinámico de recursos
+- **⚡ Suite completa**: Pruebas automatizadas con reportes
+- **🔧 Compatibilidad ARM64**: Funciona en Mac M1/M2
+- **📊 Docker Compose v2**: Compatible con versiones modernas
+
+### 🔧 **Configuraciones Disponibles**
+
+#### **1. Configuración Minimalista (Recomendada)**
+```bash
+# Archivo: docker-compose.locust-minimal.yml
+# Servicios: 3 (inference-api, locust-master, locust-worker)
+# Tiempo de inicio: ~30 segundos
+# Uso: Desarrollo y pruebas rápidas
+
+make -f Makefile.locust up
+```
+
+#### **2. Configuración Completa (Opcional)**
+```bash
+# Archivo: docker-compose.locust.yml
+# Servicios: 6 (mysql, mlflow, nginx, inference-api, locust-master, locust-worker)
+# Tiempo de inicio: ~2-3 minutos
+# Uso: Testing completo con MLflow
+
+make -f Makefile.locust up-full
+```
+
+### 🛠️ **Nuevos Scripts de Utilidad**
+
+#### **Cambiar Recursos Dinámicamente**
+```bash
+# Cambiar a 1 CPU, 1GB RAM
+./set_resources.sh 1.0 1G
+
+# Cambiar a 2 CPU, 2GB RAM
+./set_resources.sh 2.0 2G
+```
+
+#### **Suite Completa de Pruebas**
+```bash
+# Ejecutar todas las configuraciones automáticamente
+./test_complete.sh
+
+# Configuraciones probadas:
+# - 0.25 CPU, 256M RAM, 500 usuarios
+# - 0.5 CPU, 512M RAM, 2000 usuarios  
+# - 1.0 CPU, 1G RAM, 5000 usuarios
+# - 2.0 CPU, 2G RAM, 10000 usuarios
+```
+
+### 📊 **Configuraciones Predefinidas Optimizadas**
+
+```bash
+# Prueba rápida (500 usuarios, 5min)
+./run_load_tests.sh quick
+
+# Prueba media (2000 usuarios, 10min)
+./run_load_tests.sh medium
+
+# Prueba de carga (5000 usuarios, 15min)
+./run_load_tests.sh load
+
+# Prueba de estrés (10000 usuarios, 20min)
+./run_load_tests.sh stress
 ```
 
 ---
@@ -102,37 +179,31 @@ Click en **"Start swarming"** 🚀
 
 ---
 
-## 🎮 Uso con Make (Simplificado)
+## 🎮 Uso con Make (Optimizado)
 
-El `Makefile.locust` proporciona comandos simples:
+El `Makefile.locust` proporciona comandos simplificados y optimizados:
 
 ```bash
 # Ver todos los comandos disponibles
 make -f Makefile.locust help
 
 # Gestión básica
-make -f Makefile.locust up          # Iniciar servicios
+make -f Makefile.locust up          # Iniciar servicios (minimalista)
+make -f Makefile.locust up-full     # Iniciar servicios completos
 make -f Makefile.locust down        # Detener servicios
-make -f Makefile.locust restart     # Reiniciar servicios
 make -f Makefile.locust logs        # Ver logs
 make -f Makefile.locust stats       # Ver estadísticas
 make -f Makefile.locust status      # Verificar estado
 
-# Pruebas rápidas
+# Pruebas predefinidas optimizadas
 make -f Makefile.locust test-quick   # 500 usuarios, 5 min
 make -f Makefile.locust test-medium  # 2000 usuarios, 10 min
-make -f Makefile.locust test-load    # Todas las pruebas
+make -f Makefile.locust test-load    # 5000 usuarios, 15 min
+make -f Makefile.locust test-stress  # 10000 usuarios, 20 min
 
-# Pruebas con configuraciones específicas
-make -f Makefile.locust test-025    # 0.25 CPU, 256M RAM
-make -f Makefile.locust test-05     # 0.5 CPU, 512M RAM
-make -f Makefile.locust test-1      # 1.0 CPU, 1G RAM
-make -f Makefile.locust test-2      # 2.0 CPU, 2G RAM
-
-# Escalado de workers
-make -f Makefile.locust scale-2     # 2 workers
-make -f Makefile.locust scale-3     # 3 workers
-make -f Makefile.locust scale-5     # 5 workers
+# Utilidades avanzadas
+make -f Makefile.locust scale N=3    # Escalar workers
+make -f Makefile.locust restart-api  # Reiniciar solo la API
 
 # Limpieza
 make -f Makefile.locust clean       # Limpiar todo
@@ -188,7 +259,23 @@ docker compose -f docker-compose.locust.yml exec locust-master locust \
 
 ## 🔧 Configuración de Recursos
 
-### Editar límites en `docker-compose.locust.yml`:
+### **Método 1: Script Automatizado (Recomendado)**
+
+```bash
+# Cambiar recursos dinámicamente
+./set_resources.sh 1.0 1G    # 1 CPU, 1GB RAM
+./set_resources.sh 2.0 2G    # 2 CPU, 2GB RAM
+./set_resources.sh 0.5 512M  # 0.5 CPU, 512MB RAM
+
+# El script automáticamente:
+# - Actualiza env.locust
+# - Reinicia la API con nuevos recursos
+# - Verifica que esté funcionando
+```
+
+### **Método 2: Editar archivos manualmente**
+
+#### Editar límites en `docker-compose.locust.yml`:
 
 ```yaml
 inference-api:
@@ -199,7 +286,7 @@ inference-api:
         memory: 512M     # Cambiar aquí
 ```
 
-### O usar variables de entorno en `env.locust`:
+#### O usar variables de entorno en `env.locust`:
 
 ```bash
 # Editar archivo
@@ -210,9 +297,13 @@ API_CPU_LIMIT=0.5
 API_MEMORY_LIMIT=512M
 ```
 
-### Reiniciar con nueva configuración:
+### **Reiniciar con nueva configuración:**
 
 ```bash
+# Con script automatizado (recomendado)
+./set_resources.sh 1.0 1G
+
+# O manualmente
 make -f Makefile.locust restart
 ```
 
@@ -460,9 +551,15 @@ ports:
 
 ## 📚 Archivos de Documentación
 
-- **README.md** (este archivo): Guía completa del taller
-- **README-LOCUST.md**: Documentación técnica detallada
+- **README.md** (este archivo): Guía completa del taller con optimizaciones v2.0
+- **README-LOCUST.md**: Documentación técnica detallada (optimizada)
 - **INICIO-RAPIDO-LOCUST.md**: Comandos esenciales y guía rápida
+
+### **Nuevos Archivos de Utilidad**
+
+- **`set_resources.sh`**: Script para cambiar recursos dinámicamente
+- **`test_complete.sh`**: Suite completa de pruebas automatizada
+- **`docker-compose.locust-minimal.yml`**: Configuración minimalista optimizada
 
 ---
 
