@@ -11,8 +11,8 @@ Taller de MLOps enfocado en realizar **pruebas de carga** a una API de inferenci
 ## 🎯 Objetivos del Taller
 
 1. ✅ **Imagen publicada**: `ogaston/inference-g3:latest` en DockerHub
-2. ✅ **Docker Compose simple**: Para inferencia básica sin Locust
-3. ✅ **Docker Compose con Locust**: Para pruebas de carga
+2. ✅ **Sistema simplificado**: 2 scripts principales (start_all.sh + stop_all.sh)
+3. ✅ **Pruebas desde UI**: Todo se configura desde Locust Web UI
 4. ⭐ **Limitar recursos**: CPU y RAM ajustables
 5. ⭐ **Escalar con réplicas**: Múltiples instancias de la API
 6. ⭐ **Documentar resultados**: Tablas, gráficos y análisis
@@ -49,105 +49,24 @@ curl http://localhost:8000/health
 
 ```
 Taller-5/
-├── docker-compose.yaml                  # Compose principal (NO modificar)
-├── docker-compose.locust.yml            # ✨ Compose para Locust (OPTIMIZADO)
-├── docker-compose.locust-official.yml    # ✨ Compose minimalista (NUEVO)
-├── docker-compose.inference-simple.yml  # ✨ Compose simple
-├── .env                                 # Variables originales (NO modificar)
-├── env.locust                          # ✨ Variables para Locust
-├── locustfile.py                       # ✨ Configuración de pruebas (OPTIMIZADO)
-├── nginx.conf                          # ✨ Load balancer
-├── run_load_tests.sh                   # ✨ Script automatizado (OPTIMIZADO)
-├── set_resources.sh                    # ✨ Script para cambiar recursos (NUEVO)
-├── test_complete.sh                    # ✨ Suite completa de pruebas (NUEVO)
-├── Makefile.locust                     # ✨ Comandos útiles (OPTIMIZADO)
-├── Dockerfile.inference                # Dockerfile de la API
-├── README-LOCUST.md                    # Documentación detallada
-├── INICIO-RAPIDO-LOCUST.md            # Guía rápida
+├── start_all.sh                        # ⭐ Script principal de inicio
+├── stop_all.sh                         # ⭐ Script de detención
+├── docker-compose.yaml                 # Compose principal (Sistema base)
+├── docker-compose.locust-official.yml  # Compose para Locust
+├── .env                                # Variables de entorno
+├── locustfile.py                       # Configuración de pruebas Locust
 ├── app/
 │   └── train_standalone.py            # Script de entrenamiento
-├── api/
-│   ├── main.py                        # API FastAPI
-│   └── requirements.txt               # Dependencias
 ├── mysql/
 │   └── init/
 │       └── 01-create-schema.sql       # Schema de BD
-└── load_test_results/                 # Resultados de pruebas
+└── README-SIMPLE.md                    # Guía rápida
 ```
 
----
-
-## 🚀 Optimizaciones Implementadas (v2.0)
-
-### ✨ **Nuevas Características**
-
-- **⚡ Inicio súper rápido**: 30 segundos vs 3 minutos
-- **📦 Configuración minimalista**: Solo 3 servicios esenciales
-- **🛠️ Scripts de utilidad**: Cambio dinámico de recursos
-- **⚡ Suite completa**: Pruebas automatizadas con reportes
-- **🔧 Compatibilidad ARM64**: Funciona en Mac M1/M2
-- **📊 Docker Compose v2**: Compatible con versiones modernas
-
-### 🔧 **Configuraciones Disponibles**
-
-#### **1. Configuración Minimalista (Recomendada)**
-```bash
-# Archivo: docker-compose.locust-official.yml
-# Servicios: 3 (inference-api, locust-master, locust-worker)
-# Tiempo de inicio: ~30 segundos
-# Uso: Desarrollo y pruebas rápidas
-
-make -f Makefile.locust up
-```
-
-#### **2. Configuración Completa (Opcional)**
-```bash
-# Archivo: docker-compose.locust.yml
-# Servicios: 6 (mysql, mlflow, nginx, inference-api, locust-master, locust-worker)
-# Tiempo de inicio: ~2-3 minutos
-# Uso: Testing completo con MLflow
-
-make -f Makefile.locust up-full
-```
-
-### 🛠️ **Nuevos Scripts de Utilidad**
-
-#### **Cambiar Recursos Dinámicamente**
-```bash
-# Cambiar a 1 CPU, 1GB RAM
-./set_resources.sh 1.0 1G
-
-# Cambiar a 2 CPU, 2GB RAM
-./set_resources.sh 2.0 2G
-```
-
-#### **Suite Completa de Pruebas**
-```bash
-# Ejecutar todas las configuraciones automáticamente
-./test_complete.sh
-
-# Configuraciones probadas:
-# - 0.25 CPU, 256M RAM, 500 usuarios
-# - 0.5 CPU, 512M RAM, 2000 usuarios  
-# - 1.0 CPU, 1G RAM, 5000 usuarios
-# - 2.0 CPU, 2G RAM, 10000 usuarios
-```
-
-### 📊 **Configuraciones Predefinidas Optimizadas**
-
-```bash
-# Prueba rápida (500 usuarios, 5min)
-./run_load_tests.sh quick
-
-# Prueba media (2000 usuarios, 10min)
-./run_load_tests.sh medium
-
-# Prueba de carga (5000 usuarios, 15min)
-./run_load_tests.sh load
-
-# Prueba de estrés (10000 usuarios, 20min)
-./run_load_tests.sh stress
-```
+**Archivos opcionales** (útiles pero no esenciales):
+- `set_resources.sh` - Cambiar recursos dinámicamente
+- `nginx.conf` - Load balancer para múltiples réplicas
+- `.env.sample` - Ejemplo de configuración
 
 ---
 
@@ -156,7 +75,6 @@ make -f Makefile.locust up-full
 - **Docker** 20.10+
 - **Docker Compose** 2.0+
 - **curl** (para health checks)
-- **make** (opcional, para comandos simplificados)
 - **8GB RAM** mínimo
 - **10GB** espacio en disco
 
@@ -165,341 +83,250 @@ make -f Makefile.locust up-full
 docker --version
 docker compose version
 curl --version
-make --version  # opcional
 ```
 
 ---
 
 ## ⚡ Inicio Rápido (3 pasos)
 
-### 1️⃣ Iniciar servicios con Locust
+### 1️⃣ Iniciar servicios
 ```bash
-# Opción A: Con Make (recomendado)
-make -f Makefile.locust up
+# Dar permisos de ejecución (solo primera vez)
+chmod +x start_all.sh stop_all.sh
 
-# Opción B: Con Docker Compose
-docker compose -f docker-compose.locust.yml up -d
+# Iniciar servicios con configuración por defecto (medium)
+./start_all.sh
+
+# O con configuración específica
+./start_all.sh quick    # 0.5 CPU, 512M RAM
+./start_all.sh medium   # 1.0 CPU, 1G RAM (default)
+./start_all.sh load     # 2.0 CPU, 2G RAM
+./start_all.sh stress   # 4.0 CPU, 4G RAM
 ```
 
-### 2️⃣ Verificar que todo está funcionando
-```bash
-# Health check de la API
-curl http://localhost:8000/health
-
-# Ver estado de contenedores
-docker compose -f docker-compose.locust.yml ps
-
-# Ver logs en tiempo real
-docker compose -f docker-compose.locust.yml logs -f
-```
-
-### 3️⃣ Acceder a Locust UI
+### 2️⃣ Acceder a Locust UI
 Abre tu navegador en: **http://localhost:8089**
 
-Configuración inicial:
-- **Number of users**: 100
-- **Spawn rate**: 10
+### 3️⃣ Configurar y ejecutar prueba
+En la UI de Locust:
+- **Number of users**: 2000 (según configuración elegida)
+- **Spawn rate**: 100 usuarios/segundo
 - **Host**: http://inference-api:8000 (ya configurado)
-
-Click en **"Start swarming"** 🚀
-
----
-
-## 🎮 Uso con Make (Optimizado)
-
-El `Makefile.locust` proporciona comandos simplificados y optimizados:
-
-```bash
-# Ver todos los comandos disponibles
-make -f Makefile.locust help
-
-# Gestión básica
-make -f Makefile.locust up          # Iniciar servicios (minimalista)
-make -f Makefile.locust up-full     # Iniciar servicios completos
-make -f Makefile.locust down        # Detener servicios
-make -f Makefile.locust logs        # Ver logs
-make -f Makefile.locust stats       # Ver estadísticas
-make -f Makefile.locust status      # Verificar estado
-
-# Pruebas predefinidas optimizadas
-make -f Makefile.locust test-quick   # 500 usuarios, 5 min
-make -f Makefile.locust test-medium  # 2000 usuarios, 10 min
-make -f Makefile.locust test-load    # 5000 usuarios, 15 min
-make -f Makefile.locust test-stress  # 10000 usuarios, 20 min
-
-# Utilidades avanzadas
-make -f Makefile.locust scale N=3    # Escalar workers
-make -f Makefile.locust restart-api  # Reiniciar solo la API
-
-# Limpieza
-make -f Makefile.locust clean       # Limpiar todo
-```
+- Click en **"Start swarming"** 🚀
 
 ---
 
-## 🧪 Pruebas de Carga
+## 📊 Configuraciones Disponibles
 
-### Método 1: UI Web de Locust
-
-1. Iniciar servicios: `make -f Makefile.locust up`
-2. Abrir: http://localhost:8089
-3. Configurar usuarios y spawn rate
-4. Click en "Start swarming"
-5. Monitorear en tiempo real
-
-### Método 2: Script Automatizado
-
-```bash
-# Dar permisos de ejecución
-chmod +x run_load_tests.sh
-
-# Prueba rápida
-./run_load_tests.sh --quick
-
-# Prueba media
-./run_load_tests.sh --medium
-
-# Todas las pruebas
-./run_load_tests.sh --full
-
-# Configuración específica
-./run_load_tests.sh --config 0.5/512M
-
-# Personalizada
-./run_load_tests.sh --users 1000 --time 10m
-```
-
-### Método 3: Locust Headless
-
-```bash
-docker compose -f docker-compose.locust.yml exec locust-master locust \
-  --locustfile=/mnt/locust/locustfile.py \
-  --host=http://inference-api:8000 \
-  --users=100 \
-  --spawn-rate=10 \
-  --run-time=5m \
-  --headless
-```
-
----
-
-## 🔧 Configuración de Recursos
-
-### **Método 1: Script Automatizado (Recomendado)**
-
-```bash
-# Cambiar recursos dinámicamente
-./set_resources.sh 1.0 1G    # 1 CPU, 1GB RAM
-./set_resources.sh 2.0 2G    # 2 CPU, 2GB RAM
-./set_resources.sh 0.5 512M  # 0.5 CPU, 512MB RAM
-
-# El script automáticamente:
-# - Actualiza env.locust
-# - Reinicia la API con nuevos recursos
-# - Verifica que esté funcionando
-```
-
-### **Método 2: Editar archivos manualmente**
-
-#### Editar límites en `docker-compose.locust.yml`:
-
-```yaml
-inference-api:
-  deploy:
-    resources:
-      limits:
-        cpus: '0.5'      # Cambiar aquí
-        memory: 512M     # Cambiar aquí
-```
-
-#### O usar variables de entorno en `env.locust`:
-
-```bash
-# Editar archivo
-nano env.locust
-
-# Cambiar estos valores
-API_CPU_LIMIT=0.5
-API_MEMORY_LIMIT=512M
-```
-
-### **Reiniciar con nueva configuración:**
-
-```bash
-# Con script automatizado (recomendado)
-./set_resources.sh 1.0 1G
-
-# O manualmente
-make -f Makefile.locust restart
-```
-
----
-
-## 📊 Configuraciones Recomendadas
-
-| Escenario | CPU | RAM | Usuarios Max | Uso |
-|-----------|-----|-----|--------------|-----|
-| Desarrollo | 0.25 | 256M | 500 | Pruebas locales |
-| Testing | 0.5 | 512M | 2,000 | CI/CD |
-| Pre-producción | 1.0 | 1G | 5,000 | Staging |
-| Producción | 2.0 | 2G | 10,000+ | Prod |
+| Configuración | CPU | RAM | Usuarios Recomendados | Uso |
+|---------------|-----|-----|-----------------------|-----|
+| **quick** | 0.5 | 512M | 500 | Desarrollo/Pruebas rápidas |
+| **medium** | 1.0 | 1G | 2,000 | Testing (default) |
+| **load** | 2.0 | 2G | 5,000 | Pre-producción |
+| **stress** | 4.0 | 4G | 10,000 | Producción/Estrés |
 
 ---
 
 ## 🎯 Flujo de Trabajo del Taller
 
-### Paso 1: Configuración Base (0.5 CPU, 512M RAM)
+### Paso 1: Configuración Inicial
 
 ```bash
-# 1. Iniciar servicios
-make -f Makefile.locust up
+# 1. Iniciar con configuración base
+./start_all.sh medium
 
-# 2. Verificar health
+# 2. Verificar que todo funciona
 curl http://localhost:8000/health
 
-# 3. Prueba con 100 usuarios (UI)
+# 3. Abrir Locust UI
 open http://localhost:8089
 ```
 
-### Paso 2: Incrementar usuarios gradualmente
-
-```
-100 usuarios   → ✅ OK
-500 usuarios   → ✅ OK
-1000 usuarios  → ✅ OK
-2000 usuarios  → ⚠️  Latencia alta
-5000 usuarios  → ❌ Failures > 5%
-```
-
-### Paso 3: Ajustar recursos
+### Paso 2: Ejecutar Pruebas Incrementales
 
 ```bash
-# Editar docker-compose.locust.yml
-cpus: '1.0'
-memory: 1G
+# En la UI de Locust (http://localhost:8089):
 
-# Reiniciar
-make -f Makefile.locust restart
+# Prueba 1: 100 usuarios
+Number of users: 100
+Spawn rate: 10
+Click "Start swarming"
+→ Observar: RPS, latencia, errores
 
-# Probar de nuevo con 5000 usuarios
+# Prueba 2: 500 usuarios
+Click "Stop" → Cambiar a 500 users → "Start swarming"
+→ Anotar resultados
+
+# Prueba 3: 1000 usuarios
+→ Continuar incrementando...
+
+# Prueba 4: 2000 usuarios
+→ Documentar cuando empiecen a aparecer errores
 ```
 
-### Paso 4: Encontrar configuración óptima
+### Paso 3: Ajustar Recursos si es Necesario
+
+```bash
+# Si la API no soporta la carga actual:
+
+# 1. Detener servicios
+./stop_all.sh
+
+# 2. Iniciar con más recursos
+./start_all.sh load  # 2 CPU, 2GB RAM
+
+# 3. Repetir pruebas
+open http://localhost:8089
+```
+
+### Paso 4: Encontrar Configuración Óptima
 
 Repetir hasta encontrar el mínimo de recursos que soporten 10,000 usuarios con:
-- ✅ Failures < 1%
-- ✅ P95 Latency < 1s
-- ✅ CPU < 90%
-- ✅ RAM < 90%
+- ✅ **Failures < 1%**
+- ✅ **P95 Latency < 1s**
+- ✅ **CPU < 90%**
+- ✅ **RAM < 90%**
 
-### Paso 5: Documentar resultados
+### Paso 5: Documentar Resultados
 
-Completar tabla en `REPORTE.md`:
+Crear tabla con tus hallazgos:
 
 | CPU | RAM | Users | RPS | P95 (ms) | Failures | Resultado |
 |-----|-----|-------|-----|----------|----------|-----------|
-| 0.5 | 512M | 2000 | 200 | 800 | 0.5% | ⚠️ Límite |
-| 1.0 | 1G | 5000 | 500 | 600 | 0.8% | ✅ OK |
-| 2.0 | 2G | 10000 | 1000 | 400 | 0.5% | ✅ OK |
+| 0.5 | 512M | 500 | 45 | 250 | 0% | ✅ OK |
+| 0.5 | 512M | 2000 | 180 | 850 | 2.5% | ⚠️ Límite |
+| 1.0 | 1G | 2000 | 200 | 450 | 0.3% | ✅ OK |
+| 1.0 | 1G | 5000 | 480 | 950 | 3.1% | ⚠️ Límite |
+| 2.0 | 2G | 5000 | 500 | 400 | 0.5% | ✅ OK |
+| 2.0 | 2G | 10000 | 950 | 600 | 0.8% | ✅ OK |
+
+---
+
+## 🛠️ Comandos Útiles
+
+### Scripts Principales
+
+```bash
+# Iniciar servicios
+./start_all.sh [quick|medium|load|stress]
+
+# Ver estado actual
+./start_all.sh --status
+
+# Ver logs en tiempo real
+./start_all.sh --logs
+
+# Detener servicios
+./stop_all.sh
+
+# Detener y limpiar contenedores
+./stop_all.sh --clean
+
+# Limpieza completa
+./stop_all.sh --all
+```
+
+### Comandos Docker Compose
+
+```bash
+# Ver estado de contenedores
+docker compose -f docker-compose.locust-official.yml ps
+
+# Ver logs
+docker compose -f docker-compose.locust-official.yml logs -f
+
+# Ver logs de un servicio específico
+docker logs inference-api
+docker logs locust-master-official
+
+# Ver estadísticas de recursos
+docker stats
+```
+
+### Health Checks
+
+```bash
+# Verificar API
+curl http://localhost:8000/health
+
+# Verificar Locust
+curl http://localhost:8089
+
+# Hacer predicción de prueba
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "elevation": 2500,
+    "aspect": 180,
+    "slope": 15,
+    "horizontal_distance_to_hydrology": 200,
+    "vertical_distance_to_hydrology": 50,
+    "horizontal_distance_to_roadways": 1000,
+    "hillshade_9am": 200,
+    "hillshade_noon": 230,
+    "hillshade_3pm": 150,
+    "horizontal_distance_to_fire_points": 800,
+    "wilderness_area": 1,
+    "soil_type": 10
+  }'
+```
 
 ---
 
 ## 🔀 Escalamiento con Réplicas
 
-### Método 1: Docker Compose Scale
+Para probar con múltiples instancias de la API:
 
 ```bash
-# Escalar a 3 instancias
-docker compose -f docker-compose.locust.yml up -d --scale inference-api=3
+# Escalar a 3 réplicas
+docker compose -f docker-compose.locust-official.yml up -d --scale inference-api=3
 
-# Verificar
+# Verificar réplicas
 docker ps | grep inference-api
 
-# O con Make
-make -f Makefile.locust scale-3
-```
-
-### Método 2: Con Nginx Load Balancer
-
-El archivo `nginx.conf` ya está configurado para balancear entre 3 réplicas.
-
-```bash
-# Nginx ya está en docker-compose.locust.yml
-# Automáticamente distribuye la carga
-
-# Ver logs de Nginx
-docker logs nginx-locust
+# Nota: Esto distribuye la carga automáticamente entre las réplicas
 ```
 
 ---
 
 ## 📈 Monitoreo en Tiempo Real
 
-### Ver estadísticas de Docker:
+### Desde Locust UI (http://localhost:8089)
+
+- **Statistics**: Tabla con RPS, latencias, errores
+- **Charts**: Gráficos de RPS y tiempos de respuesta
+- **Failures**: Detalle de errores
+- **Exceptions**: Excepciones capturadas
+- **Download Data**: Descargar reportes CSV/HTML
+
+### Desde Docker Stats
 
 ```bash
-# Estadísticas generales
+# Ver uso de recursos de todos los contenedores
 docker stats
 
-# Solo API de inferencia
-docker stats inference-api-locust
-
-# O con Make
-make -f Makefile.locust stats
+# Solo la API
+docker stats inference-api
 ```
-
-### Ver logs:
-
-```bash
-# Todos los logs
-make -f Makefile.locust logs
-
-# Solo API
-make -f Makefile.locust logs-api
-
-# Solo Locust
-make -f Makefile.locust logs-locust
-```
-
-### Métricas de Locust:
-
-- **UI Web**: http://localhost:8089
-- **Gráficos en tiempo real**: Total RPS, Response times, Failures
-- **Tablas**: Requests, Failures, Statistics
 
 ---
 
-## 📁 Resultados de Pruebas
+## 📁 Guardar Resultados
 
-Los resultados se guardan automáticamente en `load_test_results/`:
+### Desde Locust UI
 
-```bash
-load_test_results/
-├── test_500users_0.5cpu_512Mmem_5m_stats.csv    # Datos CSV
-├── test_500users_0.5cpu_512Mmem_5m.html         # Reporte HTML
-└── consolidated_report.md                        # Reporte consolidado
-```
+1. Durante o después de la prueba, ir a http://localhost:8089
+2. Click en **"Download Data"** en el menú superior
+3. Seleccionar **"Download Report"** para HTML
+4. O **"Download Request statistics CSV"** para datos
 
-### Interpretar archivos CSV:
+### Screenshots Importantes
 
-- **Request Count**: Total de peticiones
-- **Failure Count**: Peticiones fallidas
-- **Median Response Time**: Tiempo de respuesta mediano
-- **95th Percentile**: 95% de respuestas en este tiempo
-- **Requests/s**: RPS promedio
-
-### Ver resultados:
-
-```bash
-# Listar archivos
-ls -lh load_test_results/
-
-# Ver reporte consolidado
-cat load_test_results/consolidated_report.md
-
-# Abrir HTML en navegador
-open load_test_results/*.html
-```
+Captura pantallas de:
+- Tabla de Statistics con RPS y latencias
+- Gráficos de Charts (Total RPS y Response Times)
+- Docker stats mostrando uso de CPU/RAM
+- Configuración de recursos usada
 
 ---
 
@@ -509,160 +336,108 @@ open load_test_results/*.html
 
 ```bash
 # Ver logs completos
-docker compose -f docker-compose.locust.yml logs
+docker compose -f docker-compose.locust-official.yml logs
 
 # Verificar puertos en uso
 lsof -i :8000
 lsof -i :8089
-lsof -i :5002
 
 # Limpiar y reiniciar
-make -f Makefile.locust clean
-make -f Makefile.locust up
+./stop_all.sh --all
+./start_all.sh
 ```
 
 ### API no responde
 
 ```bash
-# Health check
+# Health check detallado
 curl -v http://localhost:8000/health
 
-# Logs de la API
-docker logs inference-api-locust
+# Ver logs de la API
+docker logs inference-api
 
 # Reiniciar solo la API
-docker restart inference-api-locust
-```
-
-### Locust no conecta a la API
-
-```bash
-# Verificar red
-docker network inspect locust-network
-
-# Verificar DNS interno
-docker compose -f docker-compose.locust.yml exec locust-master ping inference-api
-
-# Ver logs de Locust
-docker logs locust-master
-```
-
-### Errores de memoria/CPU
-
-```bash
-# Ver uso actual
-docker stats
-
-# Aumentar límites
-# Editar docker-compose.locust.yml:
-cpus: '2.0'
-memory: 2G
-
-# Reiniciar
-make -f Makefile.locust restart
+docker restart inference-api
 ```
 
 ### Puerto 8089 en uso
 
 ```bash
-# Ver qué lo usa
+# Ver qué está usando el puerto
 lsof -i :8089
 
-# Cambiar puerto en docker-compose.locust.yml:
-ports:
-  - "8090:8089"
+# Matar proceso si es necesario
+kill -9 <PID>
+
+# O cambiar puerto en docker-compose.locust-official.yml
 ```
 
----
+### Locust no conecta a la API
 
-## 📚 Archivos de Documentación
+```bash
+# Verificar que ambos están en la misma red
+docker network inspect taller-5_default
 
-- **README.md** (este archivo): Guía completa del taller con optimizaciones v2.0
-- **README-LOCUST.md**: Documentación técnica detallada (optimizada)
-- **INICIO-RAPIDO-LOCUST.md**: Comandos esenciales y guía rápida
+# Si la red no existe, crearla
+docker network create taller-5_default
 
-### **Nuevos Archivos de Utilidad**
-
-- **`set_resources.sh`**: Script para cambiar recursos dinámicamente
-- **`test_complete.sh`**: Suite completa de pruebas automatizada
-- **`docker-compose.locust-official.yml`**: Configuración minimalista optimizada
-
----
-
-## 🎓 Preguntas del Taller
-
-### 1. ¿Es posible reducir más los recursos?
-
-**Respuesta**: Depende del modelo:
-- Modelo simple (sklearn): Hasta 0.25 CPU + 256MB
-- Modelo complejo (deep learning): Mínimo 1 CPU + 1GB
-
-### 2. ¿Cuál es la mayor cantidad de peticiones soportadas?
-
-**Respuesta típica**:
-- 1 instancia (2 CPU, 2GB): ~1,000 RPS
-- 3 instancias (0.75 CPU, 768MB c/u): ~3,000 RPS
-- Límite: Depende del hardware del host
-
-### 3. ¿Qué diferencia hay entre 1 o múltiples instancias?
-
-| Aspecto | 1 Instancia | 3 Instancias |
-|---------|-------------|--------------|
-| **Throughput** | Menor | Mayor |
-| **Latencia** | Mayor bajo carga | Menor |
-| **Disponibilidad** | Sin redundancia | Alta disponibilidad |
-| **Escalabilidad** | Vertical (más recursos) | Horizontal (más instancias) |
-| **Costo** | Más recursos por instancia | Recursos distribuidos |
+# Reiniciar servicios
+./stop_all.sh
+./start_all.sh
+```
 
 ---
 
 ## 🧹 Limpieza
 
-### Detener servicios:
+### Detener servicios (mantiene contenedores)
 
 ```bash
-make -f Makefile.locust down
+./stop_all.sh
 ```
 
-### Limpiar contenedores y volúmenes:
+### Limpiar contenedores
 
 ```bash
-make -f Makefile.locust clean
+./stop_all.sh --clean
 ```
 
-### Limpiar solo resultados:
+### Limpieza completa (todo)
 
 ```bash
-make -f Makefile.locust clean-results
+./stop_all.sh --all
 ```
 
-### Limpieza completa del sistema:
+### Limpiar sistema Docker
 
 ```bash
-docker system prune -a --volumes
+# Limpiar contenedores detenidos
+docker container prune -f
+
+# Limpiar imágenes no usadas
+docker image prune -a -f
+
+# Limpiar volúmenes
+docker volume prune -f
+
+# Limpieza completa del sistema
+docker system prune -a --volumes -f
 ```
 
 ---
 
 ## 🔗 URLs de Acceso
 
-Una vez iniciados los servicios:
-
 | Servicio | URL | Descripción |
 |----------|-----|-------------|
-| **Locust UI** | http://localhost:8089 | Interfaz de pruebas |
+| **Locust UI** | http://localhost:8089 | 🎯 Interfaz principal de pruebas |
 | **API** | http://localhost:8000 | API de inferencia |
 | **API Health** | http://localhost:8000/health | Health check |
 | **API Docs** | http://localhost:8000/docs | Swagger UI |
-| **MLflow** | http://localhost:5002 | Tracking UI |
-| **MySQL** | localhost:3306 | Base de datos |
-| **Nginx** | http://localhost:80 | Load balancer |
 
 ---
 
-## 📊 Ejemplo de Payload
-
-Para hacer predicciones manuales:
+## 📊 Ejemplo de Payload para Pruebas Manuales
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -694,6 +469,34 @@ Respuesta esperada:
 
 ---
 
+## 🎓 Preguntas del Taller
+
+### 1. ¿Cuál es la configuración mínima de recursos?
+
+**Respuesta depende del modelo:**
+- Modelo simple (sklearn): Hasta 0.25 CPU + 256MB
+- Modelo Covertype: 0.5 CPU + 512MB para ~500 usuarios
+
+### 2. ¿Cuántas peticiones puede soportar?
+
+**Respuesta típica con imagen `ogaston/inference-g3:latest`:**
+- 1 instancia (0.5 CPU, 512MB): ~50-100 RPS, 500 usuarios
+- 1 instancia (1 CPU, 1GB): ~200-300 RPS, 2000 usuarios
+- 1 instancia (2 CPU, 2GB): ~500-1000 RPS, 5000-10000 usuarios
+
+### 3. ¿Múltiples instancias vs más recursos?
+
+| Aspecto | 1 Instancia Grande | 3 Instancias Pequeñas |
+|---------|-------------------|----------------------|
+| **Throughput** | Moderado | Alto |
+| **Latencia** | Variable bajo carga | Más estable |
+| **Disponibilidad** | Sin redundancia | Alta disponibilidad |
+| **Escalabilidad** | Vertical | Horizontal |
+| **Costo** | 1 máquina potente | 3 máquinas modestas |
+| **Recomendación** | Dev/Testing | Producción |
+
+---
+
 ## 👥 Equipo
 
 - **Grupo 3**: Abel Albuez Sanchez, Omar Gaston Chalas, Mauricio Morales
@@ -713,13 +516,13 @@ Este proyecto es parte del curso de MLOps - 2024
 Antes de entregar el taller, verifica:
 
 - [ ] Imagen publicada en DockerHub
-- [ ] Docker Compose funciona correctamente
+- [ ] Scripts funcionan correctamente (`start_all.sh`, `stop_all.sh`)
 - [ ] Locust UI accesible en http://localhost:8089
 - [ ] API responde en http://localhost:8000/health
 - [ ] Pruebas ejecutadas con diferentes configuraciones
-- [ ] Resultados documentados en `load_test_results/`
-- [ ] Tabla de resultados completa
-- [ ] Análisis de 1 vs múltiples instancias
+- [ ] Resultados documentados (screenshots + tabla)
+- [ ] Tabla de resultados completa (CPU, RAM, Users, RPS, Latencia, Errores)
+- [ ] Análisis de 1 vs múltiples instancias (opcional)
 - [ ] Screenshots de evidencia
 - [ ] Reporte final escrito
 
@@ -730,8 +533,19 @@ Antes de entregar el taller, verifica:
 Para problemas:
 
 1. Revisar sección de **Troubleshooting**
-2. Ver logs: `make -f Makefile.locust logs`
-3. Consultar **README-LOCUST.md** para detalles técnicos
-4. Revisar **INICIO-RAPIDO-LOCUST.md** para comandos básicos
+2. Ver logs: `./start_all.sh --logs`
+3. Verificar estado: `./start_all.sh --status`
+4. Consultar **README-SIMPLE.md** para guía rápida
 
 ---
+
+## 💡 Tips para el Éxito
+
+1. **Empieza con `quick`**: Prueba con recursos mínimos primero
+2. **Incrementa gradualmente**: 100 → 500 → 1000 → 2000 → 5000 → 10000 usuarios
+3. **Documenta todo**: Toma screenshots en cada paso
+4. **Observa las métricas**: RPS, latencia P95, % errores, uso CPU/RAM
+5. **Descarga reportes**: Usa "Download Report" en Locust UI
+6. **Limpia entre pruebas**: `./stop_all.sh --clean` antes de cambiar recursos
+
+**¡Éxito en el taller! 🚀**
