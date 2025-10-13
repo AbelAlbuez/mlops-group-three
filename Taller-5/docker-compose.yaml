@@ -70,7 +70,8 @@ services:
     restart: "no"
 
   inference-api:
-    image: ${INFER_IMAGE}
+    image: ogaston/inference-g3:latest
+    platform: linux/amd64
     container_name: inference-api
     depends_on:
       mlflow:

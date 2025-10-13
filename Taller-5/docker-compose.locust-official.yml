@@ -1,67 +1,57 @@
 version: '3.8'
 
 services:
-  # API de inferencia usando la imagen oficial ogaston/inference-g3:latest
-  # con configuración para funcionar en modo standalone
-  inference-api:
-    image: ogaston/inference-g3:latest
-    platform: linux/amd64
-    container_name: inference-api-official
-    ports:
-      - "8000:8000"
-    environment:
-      - PYTHONUNBUFFERED=1
-      # Configuración para modo standalone (sin MLflow/MySQL)
-      - MLFLOW_TRACKING_URI=http://localhost:5000
-      - MYSQL_HOST=localhost
-      - MYSQL_USER=standalone
-      - MYSQL_PASSWORD=standalone
-      - MYSQL_DATABASE=standalone
-      - MODEL_LOAD_MODE=standalone
-    deploy:
-      resources:
-        limits:
-          cpus: '${API_CPU_LIMIT:-0.5}'
-          memory: ${API_MEMORY_LIMIT:-512M}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - locust-network
-
-  # Locust Master
+  # ============================================================================
+  # Locust Master - Coordina las pruebas de carga
+  # ============================================================================
   locust-master:
     image: locustio/locust:latest
     container_name: locust-master-official
     ports:
-      - "8089:8089"
+      - "8089:8089" # Web UI de Locust
     volumes:
       - ./locustfile.py:/mnt/locust/locustfile.py:ro
     command: >
-      --locustfile=/mnt/locust/locustfile.py
-      --master
-      --host=http://inference-api:8000
-    depends_on:
-      - inference-api
+      --locustfile=/mnt/locust/locustfile.py --master --host=http://inference-api:8000 --loglevel=INFO
+    environment:
+      - LOCUST_MODE=master
+      - LOCUST_MASTER_BIND_HOST=0.0.0.0
+      - LOCUST_MASTER_BIND_PORT=5557
     networks:
-      - locust-network
+      - taller-5_default
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8089" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
-  # Locust Worker
+  # ============================================================================
+  # Locust Worker - Ejecuta las pruebas de carga
+  # ============================================================================
+  # Por defecto se inicia 1 worker, puedes escalar con:
+  # docker compose -f docker-compose.locust-official.yml up -d --scale locust-worker=3
   locust-worker:
     image: locustio/locust:latest
     volumes:
       - ./locustfile.py:/mnt/locust/locustfile.py:ro
     command: >
-      --locustfile=/mnt/locust/locustfile.py
-      --worker
-      --master-host=locust-master
-    depends_on:
-      - locust-master
+      --locustfile=/mnt/locust/locustfile.py --worker --master-host=locust-master --master-port=5557 --loglevel=INFO
+    environment:
+      - LOCUST_MODE=worker
     networks:
-      - locust-network
+      - taller-5_default
+    restart: unless-stopped
 
+# ============================================================================
+# Redes
+# ============================================================================
 networks:
-  locust-network:
-    driver: bridge
+  # Usar la red del docker-compose.yaml principal
+  # Esta red es creada automáticamente por docker-compose.yaml
+  # y contiene: mysql-db, mlflow, seed-train, inference-api
+  taller-5_default:
+    external: true
+    # Si la red no existe, créala con:
+    # docker network create taller-5_default
