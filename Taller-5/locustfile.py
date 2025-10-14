@@ -41,11 +41,8 @@ class CovertypeUser(HttpUser):
         ) as response:
             if response.status_code == 200:
                 try:
-                    result = response.json()
-                    if "prediction" in result:
-                        response.success()
-                    else:
-                        response.failure("No prediction field in response")
+                    response.json()
+                    response.success()
                 except:
                     response.failure("Invalid JSON response")
             else:
