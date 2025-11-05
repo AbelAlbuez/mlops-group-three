@@ -63,7 +63,8 @@ with DAG(
         discharge_disposition_id INT,
         admission_source_id    INT,
         outcome    INT,
-        batch_id INT
+        batch_id INT,
+        split INT
     );
     """
 
@@ -103,8 +104,13 @@ with DAG(
               WHEN r.readmitted = '<30' THEN 1
               WHEN r.readmitted IN ('>30','NO') THEN 0
               ELSE NULL
-            END                                                   AS outcome,
-            r.batch_id
+            END AS outcome,
+            r.batch_id,
+            CASE 
+                WHEN (abs(hashtext(r.encounter_id::text)) %% 100) < 80 THEN 'train'
+                WHEN (abs(hashtext(r.encounter_id::text)) %% 100) < 90 THEN 'val'
+                ELSE 'test'
+            END AS split
         FROM {RAW_TABLE} r
         WHERE r.batch_id = %s
     """
@@ -186,14 +192,14 @@ with DAG(
                     number_outpatient, number_emergency, number_inpatient, number_diagnoses,
                     max_glu_serum, a1c_result, insulin, change_med, diabetes_med,
                     readmitted_label, diag_1, diag_2, diag_3, medical_specialty,
-                    admission_type_id, discharge_disposition_id, admission_source_id, outcome, batch_id
+                    admission_type_id, discharge_disposition_id, admission_source_id, outcome, batch_id, split
                 ) VALUES (
                     %s,%s,%s,%s,%s,%s,
                     %s,%s,%s,
                     %s,%s,%s,%s,
                     %s,%s,%s,%s,%s,
                     %s,%s,%s,%s,%s,
-                    %s,%s,%s,%s,%s
+                    %s,%s,%s,%s,%s,%s
                 );
             """
             ccur.executemany(insert_sql, rows)

@@ -26,27 +26,34 @@ def train_and_register():
     @task
     def train_and_log():
         hook = PostgresHook(postgres_conn_id="postgres_clean")
-        df = hook.get_pandas_df("""
-            SELECT * FROM clean_data.diabetic_clean
-            WHERE outcome IS NOT NULL
+        
+        df_train = hook.get_pandas_df("""
+        SELECT * FROM clean_data.diabetic_clean
+        WHERE outcome IS NOT NULL AND split = 'train'
         """)
-
-        y = df["outcome"].astype(int)
-        X = df.drop(columns=["outcome"], errors="ignore").select_dtypes(include="number").fillna(0)
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
-        )
+        
+        df_eval = hook.get_pandas_df("""
+        SELECT *
+        FROM clean_data.diabetic_clean
+        WHERE outcome IS NOT NULL AND split = 'val'
+        """)
+        
+        y_train = df_train["outcome"].astype(int)
+        X_train = df_train.drop(columns=["outcome","split"], errors="ignore").select_dtypes(include="number").fillna(0)
+        
+        y_eval = df_eval["outcome"].astype(int)
+        X_eval = df_eval.drop(columns=["outcome","split"], errors="ignore").select_dtypes(include="number").fillna(0)
 
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         mlflow.set_experiment(EXPERIMENT_NAME)
-
-        with mlflow.start_run(run_name="rf_baseline"):
+        
+        with mlflow.start_run(run_name="rf_train_on_split"):
             model = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)
             model.fit(X_train, y_train)
 
-            y_pred = model.predict(X_test)
-            acc = accuracy_score(y_test, y_pred)
-            f1 = f1_score(y_test, y_pred, pos_label=1)  # explícito
+            y_pred = model.predict(X_eval)
+            acc = accuracy_score(y_eval, y_pred)
+            f1 = f1_score(y_eval, y_pred, pos_label=1)
 
             mlflow.log_metric("accuracy", acc)
             mlflow.log_metric("f1", f1)
