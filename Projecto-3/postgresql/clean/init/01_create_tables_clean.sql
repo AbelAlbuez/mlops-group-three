@@ -1,4 +1,6 @@
-CREATE TABLE IF NOT EXISTS diabetic_clean (
+CREATE SCHEMA IF NOT EXISTS clean_data;
+
+CREATE TABLE IF NOT EXISTS clean_data.diabetic_clean (
   encounter_id              BIGINT PRIMARY KEY,
   patient_nbr               BIGINT,
   race                      TEXT,
@@ -26,5 +28,6 @@ CREATE TABLE IF NOT EXISTS diabetic_clean (
   discharge_disposition_id  INT,
   admission_source_id       INT,
   outcome                   INT,
-  batch_id                  INT
+  batch_id                  INT,
+  split                     TEXT
 );
