@@ -244,9 +244,9 @@ async def predict(patient: PatientInput):
         # El modelo fue entrenado con features numéricas
         # Debemos convertir los datos categóricos a numéricos como lo hizo el entrenamiento
         
-        # Para simplificar, tomamos solo las columnas numéricas
-        # En producción, deberías aplicar el mismo preprocesamiento que en entrenamiento
-        numeric_features = {
+        df = pd.DataFrame([{
+            'encounter_id': 0,
+            'patient_nbr': 0,
             'time_in_hospital': patient_dict['time_in_hospital'],
             'num_lab_procedures': patient_dict['num_lab_procedures'],
             'num_procedures': patient_dict['num_procedures'],
@@ -255,14 +255,11 @@ async def predict(patient: PatientInput):
             'number_emergency': patient_dict['number_emergency'],
             'number_inpatient': patient_dict['number_inpatient'],
             'number_diagnoses': patient_dict['number_diagnoses'],
-            'change_med': int(patient_dict['change_med']),
-            'diabetes_med': int(patient_dict['diabetes_med']),
             'admission_type_id': patient_dict['admission_type_id'],
             'discharge_disposition_id': patient_dict['discharge_disposition_id'],
-            'admission_source_id': patient_dict['admission_source_id']
-        }
-        
-        df = pd.DataFrame([numeric_features])
+            'admission_source_id': patient_dict['admission_source_id'],
+            'batch_id': 0
+        }])
         
         # Realizar predicción
         prediction, probabilities = mlflow_client.predict(df)
