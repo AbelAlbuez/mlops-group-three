@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  # FastAPI API
+  api:
+    image: localhost:32000/diabetic-api:latest
+    container_name: diabetic-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Ajusta estos endpoints a donde tengas mlflow/minio (fuera o dentro del cluster)
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=adminadmin
+      - MODEL_NAME=diabetic_risk_model
+    # Kompose ignorará redes custom; en K8s, el Service se llamará "api"
+    # y streamlit/locust podrán usar http://api:8000 dentro del cluster
+
+  # Streamlit UI
+  streamlit:
+    image: localhost:32000/diabetic-streamlit:latest
+    container_name: diabetic-streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      # En K8s, el servicio generado por Kompose para "api"
+      # también se llamará "api" en el mismo namespace:
+      # DNS interno: http://api:8000
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      - api
+
+  # Locust
+  locust:
+    image: localhost:32000/diabetic-locust:latest
+    container_name: diabetic-locust
+    ports:
+      - "8089:8089"
+    command: locust -f locustfile.py --host=http://api:8000
+    depends_on:
+      - api
