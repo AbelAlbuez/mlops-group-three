@@ -1,8 +1,11 @@
 from locust import HttpUser, task, between
 import random
+import os
 
 class PredictionUser(HttpUser):
     """Usuario que realiza predicciones"""
+    
+    host = os.getenv("LOCUST_HOST", "http://localhost:8000")
     
     # Tiempo de espera entre requests (1-3 segundos)
     wait_time = between(1, 3)

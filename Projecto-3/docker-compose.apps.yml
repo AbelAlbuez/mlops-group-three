@@ -35,7 +35,8 @@ services:
     container_name: diabetic-locust
     ports:
       - "8089:8089"
-    command: locust -f locustfile.py --host=http://api:8000
+    environment:
+      - LOCUST_HOST=http://api:8000
     networks:
       - projecto-3_default
     depends_on:
