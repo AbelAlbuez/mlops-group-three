@@ -41,8 +41,7 @@ services:
       - projecto-3_default
     depends_on:
       - api
-    profiles:
-      - locust  # Solo se levanta si se especifica
+    restart: unless-stopped
 
 networks:
   projecto-3_default:
