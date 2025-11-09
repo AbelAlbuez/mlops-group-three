@@ -3,13 +3,13 @@ services:
   minio:
     image: minio/minio:latest
     container_name: minio
-    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "${MINIO_API_PORT}:9000"
-      - "${MINIO_CONSOLE_PORT}:9001"
+      - "9000:9000"
+      - "8008:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -27,9 +27,9 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:${MINIO_API_PORT} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
-      mc mb -p local/${MLFLOW_ARTIFACT_BUCKET} || true &&
-      mc anonymous set none local/${MLFLOW_ARTIFACT_BUCKET} || true &&
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb -p myminio/mlflow;
+      mc anonymous set none myminio/mlflow;
       exit 0
       "
 
