@@ -1,0 +1,48 @@
+services:
+  # API FastAPI
+  api:
+    build: ./api
+    container_name: diabetic-api
+    ports:
+      - "8000:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-adminadmin}
+      - MODEL_NAME=diabetic_risk_model
+    networks:
+      - projecto-3_default
+    restart: unless-stopped
+
+  # Streamlit UI
+  streamlit:
+    build: ./streamlit
+    container_name: diabetic-streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://api:8000
+    networks:
+      - projecto-3_default
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Locust (opcional - se puede correr manual)
+  locust:
+    build: ./locust
+    container_name: diabetic-locust
+    ports:
+      - "8089:8089"
+    environment:
+      - LOCUST_HOST=http://api:8000
+    networks:
+      - projecto-3_default
+    depends_on:
+      - api
+    restart: unless-stopped
+
+networks:
+  projecto-3_default:
+    external: true

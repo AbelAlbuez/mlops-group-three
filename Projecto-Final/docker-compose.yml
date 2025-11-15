@@ -1,0 +1,262 @@
+services:
+  # ============ STORAGE ============
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "8008:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Crea el bucket para MLflow automáticamente
+  minio-mc:
+    image: minio/mc:latest
+    container_name: minio-mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb -p myminio/mlflow;
+      mc anonymous set none myminio/mlflow;
+      mc policy set public myminio/mlflow;
+      mc anonymous set download myminio/mlflow;
+      exit 0
+      "
+
+  # ============ DATABASES ============
+  mlflow-db:
+    image: postgres:16
+    container_name: mlflow-db
+    environment:
+      POSTGRES_DB: ${MLFLOW_DB_NAME}
+      POSTGRES_USER: ${MLFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${MLFLOW_DB_PASSWORD}
+    volumes:
+      - mlflow_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MLFLOW_DB_USER} -d ${MLFLOW_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  raw-db:
+    image: postgres:16
+    container_name: raw-db
+    environment:
+      POSTGRES_DB: ${RAW_DB}
+      POSTGRES_USER: ${RAW_USER}
+      POSTGRES_PASSWORD: ${RAW_PASSWORD}
+    volumes:
+      - raw_db_data:/var/lib/postgresql/data
+      - ./postgresql/raw/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RAW_USER} -d ${RAW_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  clean-db:
+    image: postgres:16
+    container_name: clean-db
+    environment:
+      POSTGRES_DB: ${CLEAN_DB}
+      POSTGRES_USER: ${CLEAN_USER}
+      POSTGRES_PASSWORD: ${CLEAN_PASSWORD}
+    volumes:
+      - clean_db_data:/var/lib/postgresql/data
+      - ./postgresql/clean/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CLEAN_USER} -d ${CLEAN_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      
+  raw-db-seed:
+    image: postgres:16
+    depends_on:
+      raw-db:
+        condition: service_healthy
+    volumes:
+      - ./airflow/datasets/diabetic_data.csv:/seed/diabetic_data.csv:ro
+    environment:
+      PGPASSWORD: ${RAW_PASSWORD}
+    entrypoint: ["/bin/bash", "-lc"]
+    command: >
+      '
+      set -e;
+      until pg_isready -h raw-db -p 5432 -U ${RAW_USER}; do sleep 1; done;
+      ROWS=$$(psql -h raw-db -U ${RAW_USER} -d ${RAW_DB} -tA -c "SELECT COUNT(*) FROM diabetic_raw" || echo 0);
+      echo "[SEED] Current rows: $$ROWS";
+      if [ -z "$$ROWS" ] || [ "$$ROWS" = "0" ]; then
+        echo "[SEED] Loading diabetic_data.csv into diabetic_raw ...";
+        psql -h raw-db -U ${RAW_USER} -d ${RAW_DB} -c "\copy diabetic_raw FROM '\''/seed/diabetic_data.csv'\'' WITH (FORMAT csv, HEADER true)";
+        echo "[SEED] Done.";
+      else
+        echo "[SEED] Skipped, table already has $$ROWS rows.";
+      fi
+      '
+    restart: "no"
+
+  # ============ MLFLOW ============
+  mlflow:
+    build:
+        context: .
+        dockerfile: Dockerfile.mlflow
+    image: mlflow-custom-pg:lastest
+    container_name: mlflow
+    restart: unless-stopped 
+    depends_on:
+      mlflow-db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-mc:
+        condition: service_completed_successfully
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    command: >
+      mlflow server
+      --backend-store-uri postgresql+psycopg2://${MLFLOW_DB_USER}:${MLFLOW_DB_PASSWORD}@${MLFLOW_DB_HOST}:${MLFLOW_DB_PORT}/${MLFLOW_DB_NAME}
+      --default-artifact-root s3://${MLFLOW_ARTIFACT_BUCKET}
+      --host 0.0.0.0
+      --port 5000
+    ports:
+      - "${MLFLOW_PORT:-5001}:5000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:5000"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    
+
+  # ============ AIRFLOW ============
+  airflow-init:
+    image: apache/airflow:2.9.3
+    container_name: airflow-init
+    entrypoint: /bin/bash
+    env_file:
+      - .env
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-SequentialExecutor}
+      AIRFLOW__CORE__LOAD_EXAMPLES: ${AIRFLOW__CORE__LOAD_EXAMPLES:-False}
+      AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
+      PYTHONWARNINGS: ignore::SyntaxWarning
+      _PIP_ADDITIONAL_REQUIREMENTS: "-r /opt/airflow/requirements.txt"
+    command:
+        - -lc
+        - |
+          set -e
+
+          echo '[INIT] airflow db init'
+          airflow db init
+
+          echo '[INIT] ensure admin user'
+          if ! airflow users list | grep -q " ${AIRFLOW_ADMIN_USER:-admin} "; then
+            airflow users create --username "${AIRFLOW_ADMIN_USER:-admin}" \
+                                 --password "${AIRFLOW_ADMIN_PASSWORD:-admin123}" \
+                                 --firstname Admin --lastname User --role Admin \
+                                 --email "${AIRFLOW_ADMIN_EMAIL:-admin@example.com}"
+          fi
+
+          echo '[INIT] create/update connections (idempotent)'
+          airflow connections delete postgres_raw   || true
+          airflow connections delete postgres_clean || true
+          airflow connections delete minio_s3       || true
+          airflow connections delete mlflow_tracking || true
+
+          airflow connections add postgres_raw --conn-type postgres \
+            --conn-host "${RAW_HOST:-raw-db}" \
+            --conn-login "${RAW_USER}" \
+            --conn-password "${RAW_PASSWORD}" \
+            --conn-schema "${RAW_DB}" \
+            --conn-port 5432
+
+          airflow connections add postgres_clean --conn-type postgres \
+            --conn-host "${CLEAN_HOST:-clean-db}" \
+            --conn-login "${CLEAN_USER}" \
+            --conn-password "${CLEAN_PASSWORD}" \
+            --conn-schema "${CLEAN_DB}" \
+            --conn-port 5432
+
+          airflow connections add minio_s3 --conn-type aws \
+            --conn-login "${MINIO_ROOT_USER}" \
+            --conn-password "${MINIO_ROOT_PASSWORD}" \
+            --conn-extra '{"endpoint_url":"http://minio:9000"}'
+
+          airflow connections add mlflow_tracking --conn-type http \
+            --conn-host mlflow \
+            --conn-port 5000
+
+          echo '[INIT] done.'
+    volumes:
+      - ./airflow:/opt/airflow
+      - ./airflow/requirements.txt:/opt/airflow/requirements.txt:ro
+
+  airflow-webserver:
+    image: apache/airflow:2.9.3
+    container_name: airflow-webserver
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-SequentialExecutor}
+      AIRFLOW__CORE__LOAD_EXAMPLES: ${AIRFLOW__CORE__LOAD_EXAMPLES:-False}
+      AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
+      AIRFLOW__CORE__TEST_CONNECTION: "True"
+      PYTHONWARNINGS: ignore::SyntaxWarning
+      _PIP_ADDITIONAL_REQUIREMENTS: "-r /opt/airflow/requirements.txt"
+      # MLflow S3/MinIO credentials for artifact uploads
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+    ports:
+      - "8080:8080"
+    command: webserver
+    volumes:
+      - ./airflow:/opt/airflow
+      - ./airflow/requirements.txt:/opt/airflow/requirements.txt:ro
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.3
+    container_name: airflow-scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-SequentialExecutor}
+      AIRFLOW__CORE__LOAD_EXAMPLES: ${AIRFLOW__CORE__LOAD_EXAMPLES:-False}
+      AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
+      PYTHONWARNINGS: ignore::SyntaxWarning
+      _PIP_ADDITIONAL_REQUIREMENTS: "-r /opt/airflow/requirements.txt"
+      # MLflow S3/MinIO credentials for artifact uploads
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+    command: scheduler
+    volumes:
+      - ./airflow:/opt/airflow
+      - ./airflow/requirements.txt:/opt/airflow/requirements.txt:ro
+
+volumes:
+  mlflow_db_data:
+  raw_db_data:
+  clean_db_data:
+  minio_data:
