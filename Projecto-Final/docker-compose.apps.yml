@@ -2,7 +2,7 @@ services:
   # API FastAPI
   api:
     build: ./api
-    container_name: diabetic-api
+    container_name: mlops-prediction-api
     ports:
       - "8000:8000"
     environment:
@@ -18,7 +18,7 @@ services:
   # Streamlit UI
   streamlit:
     build: ./streamlit
-    container_name: diabetic-streamlit
+    container_name: mlops-prediction-ui
     ports:
       - "8501:8501"
     environment:
@@ -32,7 +32,7 @@ services:
   # Locust (opcional - se puede correr manual)
   locust:
     build: ./locust
-    container_name: diabetic-locust
+    container_name: mlops-prediction-loadtest
     ports:
       - "8089:8089"
     environment:

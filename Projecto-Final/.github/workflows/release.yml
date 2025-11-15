@@ -6,12 +6,12 @@ on:
       - 'v*.*.*'  # Ejemplo: v1.0.0, v1.2.3, etc.
 
 env:
-  DOCKERHUB_USERNAME: abelsanchez
+  DOCKERHUB_USERNAME: aalbuez
   REGISTRY: docker.io
-  API_IMAGE: abelsanchez/diabetic-api
-  STREAMLIT_IMAGE: abelsanchez/diabetic-streamlit
-  LOCUST_IMAGE: abelsanchez/diabetic-locust
-  AIRFLOW_IMAGE: abelsanchez/diabetic-airflow
+  API_IMAGE: aalbuez/mlops-prediction-api
+  STREAMLIT_IMAGE: aalbuez/mlops-prediction-ui
+  LOCUST_IMAGE: aalbuez/mlops-prediction-loadtest
+  AIRFLOW_IMAGE: aalbuez/mlops-prediction-pipeline
 
 jobs:
   # Job 1: Build y push de todas las imágenes con tag de versión
@@ -58,7 +58,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.API_IMAGE }}:buildcache,mode=max
           platforms: linux/amd64
 
-      - name: Build and push Streamlit image
+      - name: Build and push UI (Streamlit) image
         uses: docker/build-push-action@v5
         with:
           context: ./streamlit
@@ -72,7 +72,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.STREAMLIT_IMAGE }}:buildcache,mode=max
           platforms: linux/amd64
 
-      - name: Build and push Locust image
+      - name: Build and push Loadtest (Locust) image
         uses: docker/build-push-action@v5
         with:
           context: ./locust
@@ -86,7 +86,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.LOCUST_IMAGE }}:buildcache,mode=max
           platforms: linux/amd64
 
-      - name: Build and push Airflow image
+      - name: Build and push Pipeline (Airflow) image
         uses: docker/build-push-action@v5
         with:
           context: ./airflow
@@ -162,9 +162,9 @@ jobs:
             Todas las imágenes han sido publicadas en DockerHub:
             
             - **API**: `${{ env.API_IMAGE }}:${{ steps.version.outputs.version }}`
-            - **Streamlit**: `${{ env.STREAMLIT_IMAGE }}:${{ steps.version.outputs.version }}`
-            - **Locust**: `${{ env.LOCUST_IMAGE }}:${{ steps.version.outputs.version }}`
-            - **Airflow**: `${{ env.AIRFLOW_IMAGE }}:${{ steps.version.outputs.version }}`
+            - **UI (Streamlit)**: `${{ env.STREAMLIT_IMAGE }}:${{ steps.version.outputs.version }}`
+            - **Loadtest (Locust)**: `${{ env.LOCUST_IMAGE }}:${{ steps.version.outputs.version }}`
+            - **Pipeline (Airflow)**: `${{ env.AIRFLOW_IMAGE }}:${{ steps.version.outputs.version }}`
             
             ### 📝 Cambios
             

@@ -18,19 +18,19 @@ En /etc/docker/daemon.json, para habilitar docker a pushear al registry
 
 ```sh
 # Contruir images
-docker build -t diabetic-api:latest ./api
-docker build -t diabetic-streamlit:latest ./streamlit
-docker build -t diabetic-locust:latest ./locust
+docker build -t mlops-prediction-api:latest ./api
+docker build -t mlops-prediction-ui:latest ./streamlit
+docker build -t mlops-prediction-loadtest:latest ./locust
 
 # Taggear las images
-docker tag diabetic-api:latest localhost:32000/diabetic-api:latest
-docker tag diabetic-streamlit:latest localhost:32000/diabetic-streamlit:latest
-docker tag diabetic-locust:latest localhost:32000/diabetic-locust:latest
+docker tag mlops-prediction-api:latest localhost:32000/mlops-prediction-api:latest
+docker tag mlops-prediction-ui:latest localhost:32000/mlops-prediction-ui:latest
+docker tag mlops-prediction-loadtest:latest localhost:32000/mlops-prediction-loadtest:latest
 
 # Push
-docker push localhost:32000/diabetic-api:latest
-docker push localhost:32000/diabetic-streamlit:latest
-docker push localhost:32000/diabetic-locust:latest
+docker push localhost:32000/mlops-prediction-api:latest
+docker push localhost:32000/mlops-prediction-ui:latest
+docker push localhost:32000/mlops-prediction-loadtest:latest
 ```
 
 4. instalar kompose

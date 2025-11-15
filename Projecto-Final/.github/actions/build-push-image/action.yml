@@ -46,8 +46,8 @@ runs:
         file: ${{ inputs.dockerfile }}
         push: ${{ inputs.push }}
         tags: ${{ inputs.tags }}
-        cache-from: type=registry,ref=${{ inputs.dockerhub-username }}/diabetic-${{ inputs.service-name }}:buildcache
-        cache-to: type=registry,ref=${{ inputs.dockerhub-username }}/diabetic-${{ inputs.service-name }}:buildcache,mode=max
+        cache-from: type=registry,ref=${{ inputs.dockerhub-username }}/mlops-prediction-${{ inputs.service-name }}:buildcache
+        cache-to: type=registry,ref=${{ inputs.dockerhub-username }}/mlops-prediction-${{ inputs.service-name }}:buildcache,mode=max
         platforms: linux/amd64
       shell: bash
 

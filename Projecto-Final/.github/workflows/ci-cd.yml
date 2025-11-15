@@ -24,13 +24,13 @@ on:
       - 'docker-compose*.yml'
 
 env:
-  DOCKERHUB_USERNAME: abelsanchez
+  DOCKERHUB_USERNAME: aalbuez
   REGISTRY: docker.io
   # Tags de imágenes
-  API_IMAGE: abelsanchez/diabetic-api
-  STREAMLIT_IMAGE: abelsanchez/diabetic-streamlit
-  LOCUST_IMAGE: abelsanchez/diabetic-locust
-  AIRFLOW_IMAGE: abelsanchez/diabetic-airflow
+  API_IMAGE: aalbuez/mlops-prediction-api
+  STREAMLIT_IMAGE: aalbuez/mlops-prediction-ui
+  LOCUST_IMAGE: aalbuez/mlops-prediction-loadtest
+  AIRFLOW_IMAGE: aalbuez/mlops-prediction-pipeline
 
 jobs:
   # Job 1: Lint y validación de código Python
@@ -89,13 +89,13 @@ jobs:
           - service: api
             context: ./api
             dockerfile: ./api/Dockerfile
-          - service: streamlit
+          - service: ui
             context: ./streamlit
             dockerfile: ./streamlit/Dockerfile
-          - service: locust
+          - service: loadtest
             context: ./locust
             dockerfile: ./locust/Dockerfile
-          - service: airflow
+          - service: pipeline
             context: ./airflow
             dockerfile: ./airflow/Dockerfile
     
@@ -118,16 +118,16 @@ jobs:
         run: |
           case "${{ matrix.service }}" in
             api)
-              echo "image=abelsanchez/diabetic-api" >> $GITHUB_OUTPUT
+              echo "image=aalbuez/mlops-prediction-api" >> $GITHUB_OUTPUT
               ;;
-            streamlit)
-              echo "image=abelsanchez/diabetic-streamlit" >> $GITHUB_OUTPUT
+            ui)
+              echo "image=aalbuez/mlops-prediction-ui" >> $GITHUB_OUTPUT
               ;;
-            locust)
-              echo "image=abelsanchez/diabetic-locust" >> $GITHUB_OUTPUT
+            loadtest)
+              echo "image=aalbuez/mlops-prediction-loadtest" >> $GITHUB_OUTPUT
               ;;
-            airflow)
-              echo "image=abelsanchez/diabetic-airflow" >> $GITHUB_OUTPUT
+            pipeline)
+              echo "image=aalbuez/mlops-prediction-pipeline" >> $GITHUB_OUTPUT
               ;;
           esac
 
@@ -169,7 +169,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, streamlit, locust, airflow]
+        service: [api, ui, loadtest, pipeline]
     
     steps:
       - name: Checkout code
@@ -178,7 +178,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.DOCKERHUB_USERNAME }}/diabetic-${{ matrix.service }}:latest
+          image-ref: ${{ env.DOCKERHUB_USERNAME }}/mlops-prediction-${{ matrix.service }}:latest
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
