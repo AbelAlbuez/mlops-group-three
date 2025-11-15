@@ -158,7 +158,7 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
 
       - name: Image digest
-        run: echo "✅ Image ${{ matrix.service }} pushed with digest: ${{ steps.build.outputs.digest }}"
+        run: echo "Image ${{ matrix.service }} pushed with digest: ${{ steps.build.outputs.digest }}"
 
   # Job 3: Escaneo de vulnerabilidades con Trivy (opcional pero recomendado)
   security-scan:
