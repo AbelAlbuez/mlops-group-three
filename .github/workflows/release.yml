@@ -47,8 +47,8 @@ jobs:
       - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
-          context: ./api
-          file: ./api/Dockerfile
+          context: ./Projecto-Final/api
+          file: ./Projecto-Final/api/Dockerfile
           push: true
           tags: |
             ${{ env.API_IMAGE }}:latest
@@ -61,8 +61,8 @@ jobs:
       - name: Build and push UI (Streamlit) image
         uses: docker/build-push-action@v5
         with:
-          context: ./streamlit
-          file: ./streamlit/Dockerfile
+          context: ./Projecto-Final/streamlit
+          file: ./Projecto-Final/streamlit/Dockerfile
           push: true
           tags: |
             ${{ env.STREAMLIT_IMAGE }}:latest
@@ -75,8 +75,8 @@ jobs:
       - name: Build and push Loadtest (Locust) image
         uses: docker/build-push-action@v5
         with:
-          context: ./locust
-          file: ./locust/Dockerfile
+          context: ./Projecto-Final/locust
+          file: ./Projecto-Final/locust/Dockerfile
           push: true
           tags: |
             ${{ env.LOCUST_IMAGE }}:latest
@@ -89,8 +89,8 @@ jobs:
       - name: Build and push Pipeline (Airflow) image
         uses: docker/build-push-action@v5
         with:
-          context: ./airflow
-          file: ./airflow/Dockerfile
+          context: ./Projecto-Final/airflow
+          file: ./Projecto-Final/airflow/Dockerfile
           push: true
           tags: |
             ${{ env.AIRFLOW_IMAGE }}:latest
@@ -210,8 +210,8 @@ jobs:
           echo "📝 Updating Kubernetes manifests with version ${{ steps.version.outputs.version }}"
           
           # Ejemplo de actualización (ajustar según tu estructura)
-          if [ -d "k8s" ]; then
-            find k8s -name "*.yaml" -o -name "*.yml" | while read file; do
+          if [ -d "Projecto-Final/k8s" ]; then
+            find Projecto-Final/k8s -name "*.yaml" -o -name "*.yml" | while read file; do
               echo "Updating $file..."
               # Reemplazar :latest con :${{ steps.version.outputs.version }}
               sed -i "s|:latest|:${{ steps.version.outputs.version }}|g" "$file"
@@ -222,7 +222,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add k8s/
+          git add Projecto-Final/k8s/
           git commit -m "chore: update k8s manifests to ${{ steps.version.outputs.version }}" || echo "No changes to commit"
           git push || echo "Nothing to push"
 

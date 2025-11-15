@@ -6,22 +6,22 @@ on:
       - main
     paths:
       # Solo ejecutar si cambian estos paths
-      - 'api/**'
-      - 'streamlit/**'
-      - 'locust/**'
-      - 'airflow/**'
+      - 'Projecto-Final/api/**'
+      - 'Projecto-Final/streamlit/**'
+      - 'Projecto-Final/locust/**'
+      - 'Projecto-Final/airflow/**'
       - '.github/workflows/**'
-      - 'docker-compose*.yml'
+      - 'Projecto-Final/docker-compose*.yml'
   pull_request:
     branches:
       - main
     paths:
-      - 'api/**'
-      - 'streamlit/**'
-      - 'locust/**'
-      - 'airflow/**'
+      - 'Projecto-Final/api/**'
+      - 'Projecto-Final/streamlit/**'
+      - 'Projecto-Final/locust/**'
+      - 'Projecto-Final/airflow/**'
       - '.github/workflows/**'
-      - 'docker-compose*.yml'
+      - 'Projecto-Final/docker-compose*.yml'
 
 env:
   DOCKERHUB_USERNAME: aalbuez
@@ -52,7 +52,7 @@ jobs:
 
       - name: Lint API code
         if: contains(github.event.head_commit.message, 'api') || github.event_name == 'pull_request'
-        working-directory: ./api
+        working-directory: ./Projecto-Final/api
         run: |
           echo "🔍 Linting API code..."
           black --check . || true
@@ -61,7 +61,7 @@ jobs:
 
       - name: Lint Streamlit code
         if: contains(github.event.head_commit.message, 'streamlit') || github.event_name == 'pull_request'
-        working-directory: ./streamlit
+        working-directory: ./Projecto-Final/streamlit
         run: |
           echo "🔍 Linting Streamlit code..."
           black --check . || true
@@ -69,7 +69,7 @@ jobs:
 
       - name: Lint Airflow DAGs
         if: contains(github.event.head_commit.message, 'airflow') || github.event_name == 'pull_request'
-        working-directory: ./airflow
+        working-directory: ./Projecto-Final/airflow
         run: |
           echo "🔍 Linting Airflow DAGs..."
           black --check dags/ || true
@@ -87,17 +87,17 @@ jobs:
       matrix:
         include:
           - service: api
-            context: ./api
-            dockerfile: ./api/Dockerfile
+            context: ./Projecto-Final/api
+            dockerfile: ./Projecto-Final/api/Dockerfile
           - service: ui
-            context: ./streamlit
-            dockerfile: ./streamlit/Dockerfile
+            context: ./Projecto-Final/streamlit
+            dockerfile: ./Projecto-Final/streamlit/Dockerfile
           - service: loadtest
-            context: ./locust
-            dockerfile: ./locust/Dockerfile
+            context: ./Projecto-Final/locust
+            dockerfile: ./Projecto-Final/locust/Dockerfile
           - service: pipeline
-            context: ./airflow
-            dockerfile: ./airflow/Dockerfile
+            context: ./Projecto-Final/airflow
+            dockerfile: ./Projecto-Final/airflow/Dockerfile
     
     steps:
       - name: Checkout code
@@ -206,13 +206,13 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        working-directory: ./api
+        working-directory: ./Projecto-Final/api
         run: |
           pip install -r requirements.txt
           pip install pytest requests
 
       - name: Run API tests
-        working-directory: ./api
+        working-directory: ./Projecto-Final/api
         run: |
           echo "🧪 Running API tests..."
           # Verificar que el test file existe y es ejecutable
@@ -223,7 +223,7 @@ jobs:
           fi
 
       - name: Validate API structure
-        working-directory: ./api
+        working-directory: ./Projecto-Final/api
         run: |
           echo "✅ Validating API structure..."
           python -c "import main; print('✅ main.py is valid')"
