@@ -5,7 +5,6 @@ on:
     branches:
       - main
     paths:
-      # Solo ejecutar si cambian estos paths
       - 'Projecto-Final/api/**'
       - 'Projecto-Final/streamlit/**'
       - 'Projecto-Final/locust/**'
@@ -26,14 +25,12 @@ on:
 env:
   DOCKERHUB_USERNAME: aalbuez
   REGISTRY: docker.io
-  # Tags de imágenes
   API_IMAGE: aalbuez/mlops-prediction-api
   STREAMLIT_IMAGE: aalbuez/mlops-prediction-ui
   LOCUST_IMAGE: aalbuez/mlops-prediction-loadtest
   AIRFLOW_IMAGE: aalbuez/mlops-prediction-pipeline
 
 jobs:
-  # Job 1: Lint y validación de código Python
   lint:
     name: Lint & Code Quality
     runs-on: ubuntu-latest
@@ -54,7 +51,7 @@ jobs:
         if: contains(github.event.head_commit.message, 'api') || github.event_name == 'pull_request'
         working-directory: ./Projecto-Final/api
         run: |
-          echo "🔍 Linting API code..."
+          echo "Linting API code..."
           black --check . || true
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics || true
@@ -63,7 +60,7 @@ jobs:
         if: contains(github.event.head_commit.message, 'streamlit') || github.event_name == 'pull_request'
         working-directory: ./Projecto-Final/streamlit
         run: |
-          echo "🔍 Linting Streamlit code..."
+          echo "Linting Streamlit code..."
           black --check . || true
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
 
@@ -71,11 +68,10 @@ jobs:
         if: contains(github.event.head_commit.message, 'airflow') || github.event_name == 'pull_request'
         working-directory: ./Projecto-Final/airflow
         run: |
-          echo "🔍 Linting Airflow DAGs..."
+          echo "Linting Airflow DAGs..."
           black --check dags/ || true
           flake8 dags/ --count --select=E9,F63,F7,F82 --show-source --statistics || true
 
-  # Job 2: Build y push de imágenes Docker (paralelo con matrix)
   build-and-push:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
@@ -131,7 +127,7 @@ jobs:
               ;;
           esac
 
-      - name: Extract metadata (tags, labels)
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -158,9 +154,9 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
 
       - name: Image digest
-        run: echo "Image ${{ matrix.service }} pushed with digest: ${{ steps.build.outputs.digest }}"
+        run: |
+          echo "Image ${{ matrix.service }} pushed with digest: ${{ steps.build.outputs.digest }}"
 
-  # Job 3: Escaneo de vulnerabilidades con Trivy (opcional pero recomendado)
   security-scan:
     name: Security Scan (Trivy)
     runs-on: ubuntu-latest
@@ -189,7 +185,6 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  # Job 4: Tests básicos de la API
   test-api:
     name: Test API
     runs-on: ubuntu-latest
@@ -214,23 +209,21 @@ jobs:
       - name: Run API tests
         working-directory: ./Projecto-Final/api
         run: |
-          echo "🧪 Running API tests..."
-          # Verificar que el test file existe y es ejecutable
+          echo "Running API tests..."
           if [ -f "test_api.py" ]; then
-            python test_api.py || echo "⚠️ Tests require running API - skipping for now"
+            python test_api.py || echo "Tests require running API - skipping for now"
           else
-            echo "ℹ️ No test_api.py found, skipping tests"
+            echo "No test_api.py found, skipping tests"
           fi
 
       - name: Validate API structure
         working-directory: ./Projecto-Final/api
         run: |
-          echo "✅ Validating API structure..."
-          python -c "import main; print('✅ main.py is valid')"
-          python -c "import schemas; print('✅ schemas.py is valid')"
-          python -c "import mlflow_client; print('✅ mlflow_client.py is valid')"
+          echo "Validating API structure..."
+          python -c "import main; print('main.py is valid')"
+          python -c "import schemas; print('schemas.py is valid')"
+          python -c "import mlflow_client; print('mlflow_client.py is valid')"
 
-  # Job 5: Notificación de estado (opcional)
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
@@ -243,9 +236,8 @@ jobs:
           if [ "${{ needs.lint.result }}" == "success" ] && \
              [ "${{ needs.build-and-push.result }}" == "success" ] && \
              [ "${{ needs.test-api.result }}" == "success" ]; then
-            echo "✅ All jobs passed successfully!"
+            echo "All jobs passed successfully!"
           else
-            echo "❌ Some jobs failed. Check the logs above."
+            echo "Some jobs failed. Check the logs above."
             exit 1
           fi
-

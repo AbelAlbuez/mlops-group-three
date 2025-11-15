@@ -3,7 +3,7 @@ name: Release Workflow
 on:
   push:
     tags:
-      - 'v*.*.*'  # Ejemplo: v1.0.0, v1.2.3, etc.
+      - 'v*.*.*'
 
 env:
   DOCKERHUB_USERNAME: aalbuez
@@ -14,7 +14,6 @@ env:
   AIRFLOW_IMAGE: aalbuez/mlops-prediction-pipeline
 
 jobs:
-  # Job 1: Build y push de todas las imágenes con tag de versión
   build-release-images:
     name: Build Release Images
     runs-on: ubuntu-latest
@@ -23,17 +22,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para generar changelog
+          fetch-depth: 0
 
       - name: Extract version from tag
         id: version
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remover 'v' del inicio
+          VERSION=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$GITHUB_REF" >> $GITHUB_OUTPUT
-          echo "📦 Version: $VERSION"
-          echo "🏷️  Tag: $GITHUB_REF"
+          echo "Version: $VERSION"
+          echo "Tag: $GITHUB_REF"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -58,7 +57,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.API_IMAGE }}:buildcache,mode=max
           platforms: linux/amd64
 
-      - name: Build and push UI (Streamlit) image
+      - name: Build and push UI image
         uses: docker/build-push-action@v5
         with:
           context: ./Projecto-Final/streamlit
@@ -72,7 +71,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.STREAMLIT_IMAGE }}:buildcache,mode=max
           platforms: linux/amd64
 
-      - name: Build and push Loadtest (Locust) image
+      - name: Build and push Loadtest image
         uses: docker/build-push-action@v5
         with:
           context: ./Projecto-Final/locust
@@ -86,7 +85,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.LOCUST_IMAGE }}:buildcache,mode=max
           platforms: linux/amd64
 
-      - name: Build and push Pipeline (Airflow) image
+      - name: Build and push Pipeline image
         uses: docker/build-push-action@v5
         with:
           context: ./Projecto-Final/airflow
@@ -102,15 +101,14 @@ jobs:
 
       - name: Output image tags
         run: |
-          echo "✅ All images pushed successfully!"
+          echo "All images pushed successfully!"
           echo ""
-          echo "📦 Released images:"
+          echo "Released images:"
           echo "  - ${{ env.API_IMAGE }}:${{ steps.version.outputs.version }}"
           echo "  - ${{ env.STREAMLIT_IMAGE }}:${{ steps.version.outputs.version }}"
           echo "  - ${{ env.LOCUST_IMAGE }}:${{ steps.version.outputs.version }}"
           echo "  - ${{ env.AIRFLOW_IMAGE }}:${{ steps.version.outputs.version }}"
 
-  # Job 2: Generar changelog y crear GitHub Release
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
@@ -136,14 +134,13 @@ jobs:
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ github.ref_name }}^ 2>/dev/null || echo "")
           
           if [ -z "$PREVIOUS_TAG" ]; then
-            echo "📝 Generating changelog from beginning..."
+            echo "Generating changelog from beginning..."
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${{ github.ref_name }})
           else
-            echo "📝 Generating changelog from $PREVIOUS_TAG to ${{ github.ref_name }}..."
+            echo "Generating changelog from $PREVIOUS_TAG to ${{ github.ref_name }}..."
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" ${PREVIOUS_TAG}..${{ github.ref_name }})
           fi
           
-          # Guardar en output (escapar newlines)
           {
             echo 'changelog<<EOF'
             echo "$CHANGELOG"
@@ -155,9 +152,9 @@ jobs:
         with:
           name: Release ${{ github.ref_name }}
           body: |
-            ## 🚀 Release ${{ steps.version.outputs.version }}
+            ## Release ${{ steps.version.outputs.version }}
             
-            ### 📦 Docker Images
+            ### Docker Images
             
             Todas las imágenes han sido publicadas en DockerHub:
             
@@ -166,11 +163,11 @@ jobs:
             - **Loadtest (Locust)**: `${{ env.LOCUST_IMAGE }}:${{ steps.version.outputs.version }}`
             - **Pipeline (Airflow)**: `${{ env.AIRFLOW_IMAGE }}:${{ steps.version.outputs.version }}`
             
-            ### 📝 Cambios
+            ### Cambios
             
             ${{ steps.changelog.outputs.changelog }}
             
-            ### 🔧 Uso
+            ### Uso
             
             ```bash
             # Pull de imágenes
@@ -180,19 +177,18 @@ jobs:
             docker pull ${{ env.AIRFLOW_IMAGE }}:${{ steps.version.outputs.version }}
             ```
             
-            ### 📚 Documentación
+            ### Documentación
             
-            Ver [README.md](../README.md) para más información sobre el despliegue.
+            Ver README.md para más información sobre el despliegue.
           draft: false
           prerelease: false
           generate_release_notes: true
 
-  # Job 3: Actualizar manifiestos de Kubernetes (opcional - para Argo CD)
   update-k8s-manifests:
     name: Update Kubernetes Manifests
     runs-on: ubuntu-latest
     needs: build-release-images
-    if: false  # Deshabilitado por defecto - habilitar si usas Argo CD
+    if: false
     
     steps:
       - name: Checkout code
@@ -207,13 +203,11 @@ jobs:
 
       - name: Update image tags in k8s manifests
         run: |
-          echo "📝 Updating Kubernetes manifests with version ${{ steps.version.outputs.version }}"
+          echo "Updating Kubernetes manifests with version ${{ steps.version.outputs.version }}"
           
-          # Ejemplo de actualización (ajustar según tu estructura)
           if [ -d "Projecto-Final/k8s" ]; then
             find Projecto-Final/k8s -name "*.yaml" -o -name "*.yml" | while read file; do
               echo "Updating $file..."
-              # Reemplazar :latest con :${{ steps.version.outputs.version }}
               sed -i "s|:latest|:${{ steps.version.outputs.version }}|g" "$file"
             done
           fi
@@ -225,4 +219,3 @@ jobs:
           git add Projecto-Final/k8s/
           git commit -m "chore: update k8s manifests to ${{ steps.version.outputs.version }}" || echo "No changes to commit"
           git push || echo "Nothing to push"
-
