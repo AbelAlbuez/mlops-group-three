@@ -22,6 +22,11 @@ on:
       - '.github/workflows/**'
       - 'Projecto-Final/docker-compose*.yml'
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
 env:
   DOCKERHUB_USERNAME: aalbuez
   REGISTRY: docker.io
@@ -72,10 +77,42 @@ jobs:
           black --check dags/ || true
           flake8 dags/ --count --select=E9,F63,F7,F82 --show-source --statistics || true
 
+  security-scan:
+    name: Security Scan (Trivy)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [api, streamlit, locust]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './Projecto-Final/${{ matrix.component }}'
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.component }}.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-${{ matrix.component }}.sarif'
+          category: 'trivy-${{ matrix.component }}'
+
   build-and-push:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, security-scan]
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     
     strategy:
@@ -156,34 +193,6 @@ jobs:
       - name: Image digest
         run: |
           echo "Image ${{ matrix.service }} pushed with digest: ${{ steps.build.outputs.digest }}"
-
-  security-scan:
-    name: Security Scan (Trivy)
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    if: github.event_name == 'push'
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [api, ui, loadtest, pipeline]
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.DOCKERHUB_USERNAME }}/mlops-prediction-${{ matrix.service }}:latest
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
 
   test-api:
     name: Test API

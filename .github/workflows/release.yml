@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
 env:
   DOCKERHUB_USERNAME: aalbuez
   REGISTRY: docker.io
@@ -113,6 +118,8 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: build-release-images
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout code
@@ -189,6 +196,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-release-images
     if: false
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout code
