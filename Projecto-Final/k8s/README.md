@@ -5,32 +5,21 @@ Esta es la documentación de la configuración realizada en el cluster de aplica
 ## Desplegar Aplicaciones
 
 1. Actualizar el docker compose con los valores reales # TODO
-2. habilitar el registry
-
-En /etc/docker/daemon.json, para habilitar docker a pushear al registry
-```json
-{
-  "insecure-registries": ["localhost:32000"]
-}
-
-```
-3. construir y taggear las imagenes al registry del cluister localhost:32000
+2. construir y taggear las imagenes al registry del cluister aalbuez
 
 ```sh
 # Contruir images
 docker build -t mlops-prediction-api:latest ./api
 docker build -t mlops-prediction-ui:latest ./streamlit
-docker build -t mlops-prediction-loadtest:latest ./locust
+
 
 # Taggear las images
-docker tag mlops-prediction-api:latest localhost:32000/mlops-prediction-api:latest
-docker tag mlops-prediction-ui:latest localhost:32000/mlops-prediction-ui:latest
-docker tag mlops-prediction-loadtest:latest localhost:32000/mlops-prediction-loadtest:latest
+docker tag mlops-prediction-api:latest aalbuez/mlops-prediction-api:latest
+docker tag mlops-prediction-ui:latest aalbuez/mlops-prediction-ui:latest
 
 # Push
-docker push localhost:32000/mlops-prediction-api:latest
-docker push localhost:32000/mlops-prediction-ui:latest
-docker push localhost:32000/mlops-prediction-loadtest:latest
+docker push aalbuez/mlops-prediction-api:latest
+docker push aalbuez/mlops-prediction-ui:latest
 ```
 
 4. instalar kompose
@@ -59,7 +48,6 @@ chmod +x init-forward.sh
 
 El script `init-forward.sh` en el directorio `k8s/` expone los siguientes servicios de aplicaciones mediante port-forward:
 - **API**: `http://localhost:8001` (puerto interno 8000)
-- **Locust**: `http://localhost:8002` (puerto interno 8089)
 - **Streamlit**: `http://localhost:8003` (puerto interno 8501)
 
 Los logs y PIDs de los procesos de port-forward se guardan en el directorio `./logs/`.
@@ -68,6 +56,6 @@ Para detener los port-forwards de las aplicaciones:
 ```sh
 pkill -f 'kubectl port-forward'
 # o
-kill $(cat logs/api-forward.pid) $(cat logs/locust-forward.pid) $(cat logs/streamlit-forward.pid)
+kill $(cat logs/api-forward.pid) $(cat logs/streamlit-forward.pid)
 ```
 
