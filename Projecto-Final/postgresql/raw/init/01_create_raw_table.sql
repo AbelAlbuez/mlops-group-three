@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS public.real_estate_raw (
+    id              BIGSERIAL PRIMARY KEY,
+    batch_id        BIGINT NOT NULL,
+    group_number    INTEGER NOT NULL,
+    day             VARCHAR(16) NOT NULL,
+    batch_number    INTEGER NOT NULL,
+    ingestion_ts    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    brokered_by     DOUBLE PRECISION,
+    status          TEXT,
+    price           DOUBLE PRECISION,
+    bed             DOUBLE PRECISION,
+    bath            DOUBLE PRECISION,
+    acre_lot        DOUBLE PRECISION,
+    street          DOUBLE PRECISION,
+    city            TEXT,
+    state           TEXT,
+    zip_code        DOUBLE PRECISION,
+    house_size      DOUBLE PRECISION,
+    prev_sold_date  DATE
+);
