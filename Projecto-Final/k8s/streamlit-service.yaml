@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.apps.yml -o komposefiles/ --volumes hostPath
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: streamlit
+  name: streamlit
+  namespace: apps
+spec:
+  ports:
+    - name: "8501"
+      port: 8501
+      targetPort: 8501
+  selector:
+    io.kompose.service: streamlit
