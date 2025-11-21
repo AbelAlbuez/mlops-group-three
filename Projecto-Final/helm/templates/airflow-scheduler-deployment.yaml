@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mlops-stack.fullname" . }}-airflow-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "mlops-stack.fullname" . }}-airflow-scheduler
+  template:
+    metadata:
+      labels:
+        app: {{ include "mlops-stack.fullname" . }}-airflow-scheduler
+    spec:
+      containers:
+        - name: airflow-scheduler
+          image: {{ .Values.airflow.image }}
+          env:
+            - name: AIRFLOW_UID
+              value: "50000"
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: {{ .Values.airflow.executor }}
+            - name: AIRFLOW__CORE__LOAD_EXAMPLES
+              value: "False"
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: "postgresql+psycopg2://{{ .Values.airflowDb.user }}:{{ .Values.airflowDb.password }}@{{ include "mlops-stack.fullname" . }}-airflow-db:5432/{{ .Values.airflowDb.dbName }}"
+            - name: PYTHONWARNINGS
+              value: "ignore::SyntaxWarning"
+          args:
+            - "scheduler"

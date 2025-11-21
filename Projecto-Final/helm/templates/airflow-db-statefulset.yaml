@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "mlops-stack.fullname" . }}-airflow-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.airflowDb.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.airflowDb.persistence.size }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "mlops-stack.fullname" . }}-airflow-db
+spec:
+  serviceName: {{ include "mlops-stack.fullname" . }}-airflow-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "mlops-stack.fullname" . }}-airflow-db
+  template:
+    metadata:
+      labels:
+        app: {{ include "mlops-stack.fullname" . }}-airflow-db
+    spec:
+      nodeSelector:
+{{- toYaml .Values.global.storageNodeSelector | nindent 8 }}
+      containers:
+        - name: postgres
+          image: {{ .Values.airflowDb.image }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.airflowDb.dbName | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.airflowDb.user | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.airflowDb.password | quote }}
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.airflowDb.persistence.storageClassName }}
+        resources:
+          requests:
+            storage: {{ .Values.airflowDb.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mlops-stack.fullname" . }}-airflow-db
+spec:
+  selector:
+    app: {{ include "mlops-stack.fullname" . }}-airflow-db
+  ports:
+    - port: 5432
+      targetPort: 5432
