@@ -89,7 +89,7 @@ airflowDb:
 
 # ============ AIRFLOW (2.9.x) ============
 airflow:
-  image: apache/airflow:2.9.3
+  image: aalbuez/mlops-prediction-pipeline:main-aaab1bc
   executor: LocalExecutor
 
   web:
