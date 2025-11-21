@@ -28,7 +28,7 @@ def restart_data_generation_dag():
         if not base_url:
             raise ValueError("REAL_ESTATE_API_BASE_URL no está definida en el entorno")
 
-        default_group = os.environ.get("REAL_ESTATE_GROUP_NUMBER", "1")
+        default_group = os.environ.get("REAL_ESTATE_GROUP_NUMBER", "3")
         default_day = os.environ.get("REAL_ESTATE_DAY", "Tuesday")
 
         group_number_str = str(conf.get("group_number", default_group))

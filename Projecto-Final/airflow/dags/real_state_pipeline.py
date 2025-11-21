@@ -363,9 +363,10 @@ def real_estate_batch_pipeline():
 
         # 2) Cargar datos completos de CLEAN para entrenar
         with clean_hook.get_conn() as conn:
-            df = pd.read_sql(
+            df_all = pd.read_sql(
                 """
                 SELECT
+                    batch_id,
                     price,
                     bed,
                     bath,
@@ -380,10 +381,88 @@ def real_estate_batch_pipeline():
                 conn,
             )
 
-        if df.empty:
+        if df_all.empty:
             raise AirflowSkipException("real_estate_clean está vacío al intentar entrenar.")
+            
+        # ---------- Validación de variación de distribución en el último batch ----------
+        # Separar histórico vs último batch
+        unique_batches = df_all["batch_id"].nunique()
+        if unique_batches == 1:
+            log.info(
+                "Solo hay un batch en CLEAN (batch_id=%s). "
+                "Primera ejecución: se entrena sí o sí sin validar drift.",
+                last_batch_id,
+            )
+        else:
+            df_last = df_all[df_all["batch_id"] == last_batch_id].copy()
+            df_hist = df_all[df_all["batch_id"] < last_batch_id].copy()
+            
+            numeric_cols = ["bed", "bath", "acre_lot", "house_size"]
+            cat_cols = ["status", "city", "state", "zip_code"]
+            
+            if df_hist.empty:
+                log.info(
+                    "Solo hay un batch en CLEAN (batch_id=%s). "
+                    "Se entrenará modelo sin validación de drift.",
+                    
+                    last_batch_id,
+                    )
+            else:
+                for col in numeric_cols:
+                    df_hist[col] = pd.to_numeric(df_hist[col], errors="coerce")
+                    df_last[col] = pd.to_numeric(df_last[col], errors="coerce")
 
+            
+            # --- Diferencias relativas en medias numéricas ---
+            num_diffs = []
+            for col in numeric_cols:
+                mu_hist = df_hist[col].mean()
+                mu_last = df_last[col].mean()
+                if pd.isna(mu_hist) or pd.isna(mu_last):
+                    continue
+                rel_diff = abs(mu_last - mu_hist) / (abs(mu_hist) + 1e-6)
+                num_diffs.append(rel_diff)
+            
+            max_num_diff = max(num_diffs) if num_diffs else 0.0
+            
+            # --- Diferencias en distribuciones categóricas (Total Variation Distance) ---
+            cat_tvd = []
+            for col in cat_cols:
+                p_hist = df_hist[col].value_counts(normalize=True)
+                p_last = df_last[col].value_counts(normalize=True)
+                idx = p_hist.index.union(p_last.index)
+                p_hist = p_hist.reindex(idx, fill_value=0.0)
+                p_last = p_last.reindex(idx, fill_value=0.0)
+                tvd = 0.5 * np.abs(p_last - p_hist).sum()
+                cat_tvd.append(tvd)
+                
+            max_cat_tvd = max(cat_tvd) if cat_tvd else 0.0
+            
+            # Umbrales
+            NUM_THR = 0.20 # 50% de cambio máximo en medias
+            CAT_THR = 0.30  # 60% de cambio máximo en distribución categórica
+            
+            log.info(
+                "Chequeo de estabilidad de distribución para batch_id=%s: "
+                "max_num_diff=%.4f, max_cat_tvd=%.4f",
+                last_batch_id,
+                max_num_diff,
+                max_cat_tvd,
+            )
+            
+            if max_num_diff < NUM_THR and max_cat_tvd < CAT_THR:
+                msg = (
+                    f"Batch_id={last_batch_id} tiene distribución muy similar al histórico "
+                    f"(max_num_diff={max_num_diff:.4f}, max_cat_tvd={max_cat_tvd:.4f}). "
+                    "Se hace SKIP de entrenamiento por falta de nueva información relevante."
+                )
+                log.warning(msg)
+                raise AirflowSkipException(msg)
+        
         # ---------- Ingeniería de features con Pipeline ----------
+        
+        df = df_all.copy()
+        
         numeric_cols = ["bed", "bath", "acre_lot", "house_size"]
         cat_cols = ["status", "city", "state", "zip_code"]
 
