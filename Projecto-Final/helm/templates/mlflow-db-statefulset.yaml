@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "mlops-stack.fullname" . }}-mlflow-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.mlflowDb.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.mlflowDb.persistence.size }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "mlops-stack.fullname" . }}-mlflow-db
+spec:
+  serviceName: {{ include "mlops-stack.fullname" . }}-mlflow-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "mlops-stack.fullname" . }}-mlflow-db
+  template:
+    metadata:
+      labels:
+        app: {{ include "mlops-stack.fullname" . }}-mlflow-db
+    spec:
+      nodeSelector:
+{{- toYaml .Values.global.storageNodeSelector | nindent 8 }}
+      containers:
+        - name: postgres
+          image: {{ .Values.mlflowDb.image }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.mlflowDb.dbName | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.mlflowDb.user | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.mlflowDb.password | quote }}
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.mlflowDb.persistence.storageClassName }}
+        resources:
+          requests:
+            storage: {{ .Values.mlflowDb.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mlops-stack.fullname" . }}-mlflow-db
+spec:
+  selector:
+    app: {{ include "mlops-stack.fullname" . }}-mlflow-db
+  ports:
+    - port: 5432
+      targetPort: 5432

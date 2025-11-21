@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "mlops-stack.fullname" . }}-airflow-init
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: airflow-init
+          image: {{ .Values.airflow.image }}
+          env:
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: {{ .Values.airflow.executor }}
+            - name: AIRFLOW__CORE__LOAD_EXAMPLES
+              value: "False"
+            - name: AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS
+              value: "False"
+            - name: PYTHONWARNINGS
+              value: "ignore::SyntaxWarning"
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: "postgresql+psycopg2://{{ .Values.airflowDb.user }}:{{ .Values.airflowDb.password }}@{{ include "mlops-stack.fullname" . }}-airflow-db:5432/{{ .Values.airflowDb.dbName }}"
+            - name: MINIO_ROOT_USER
+              value: {{ .Values.minio.rootUser | quote }}
+            - name: MINIO_ROOT_PASSWORD
+              value: {{ .Values.minio.rootPassword | quote }}
+          command:
+            - /bin/bash
+            - -lc
+            - |
+              set -e
+
+              echo "[INIT] Initializing Airflow DB..."
+              airflow db init
+
+              echo "[INIT] Creating Airflow admin user..."
+              airflow users create \
+                --username admin \
+                --firstname Admin \
+                --lastname User \
+                --role Admin \
+                --email admin@example.com \
+                --password admin || true
+
+              echo "[INIT] Adding Airflow connections..."
+              # Agrega tus conexiones aquí:
+              # airflow connections add ...
+              # airflow variables set ...
+              echo "[INIT] Airflow initialization completed."

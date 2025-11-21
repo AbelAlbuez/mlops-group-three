@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "mlops-stack.fullname" . }}-minio-mc
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: minio-mc
+          image: {{ .Values.minioMc.image }}
+          env:
+            - name: MINIO_ROOT_USER
+              value: {{ .Values.minio.rootUser | quote }}
+            - name: MINIO_ROOT_PASSWORD
+              value: {{ .Values.minio.rootPassword | quote }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mc alias set minio http://{{ include "mlops-stack.fullname" . }}-minio:{{ .Values.minio.service.port }} {{ .Values.minio.rootUser }} {{ .Values.minio.rootPassword }} && \
+              mc mb -p minio/{{ .Values.minio.bucketName }} || true && \
+              mc policy set public minio/{{ .Values.minio.bucketName }} || true
