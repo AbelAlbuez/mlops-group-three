@@ -18,6 +18,7 @@ env:
   STREAMLIT_IMAGE: aalbuez/mlops-prediction-ui
   LOCUST_IMAGE: aalbuez/mlops-prediction-loadtest
   AIRFLOW_IMAGE: aalbuez/mlops-prediction-pipeline
+  MLFLOW_IMAGE: aalbuez/mlops-prediction-mlflow
 
 jobs:
   build-release-images:
@@ -105,6 +106,20 @@ jobs:
           cache-to: type=registry,ref=${{ env.AIRFLOW_IMAGE }}:buildcache,mode=max
           platforms: linux/amd64
 
+      - name: Build and push MLflow image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Projecto-Final
+          file: ./Projecto-Final/Dockerfile.mlflow
+          push: true
+          tags: |
+            ${{ env.MLFLOW_IMAGE }}:latest
+            ${{ env.MLFLOW_IMAGE }}:${{ steps.version.outputs.version }}
+            ${{ env.MLFLOW_IMAGE }}:${{ github.ref_name }}
+          cache-from: type=registry,ref=${{ env.MLFLOW_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.MLFLOW_IMAGE }}:buildcache,mode=max
+          platforms: linux/amd64
+
       - name: Output image tags
         run: |
           echo "All images pushed successfully!"
@@ -114,6 +129,7 @@ jobs:
           echo "  - ${{ env.STREAMLIT_IMAGE }}:${{ steps.version.outputs.version }}"
           echo "  - ${{ env.LOCUST_IMAGE }}:${{ steps.version.outputs.version }}"
           echo "  - ${{ env.AIRFLOW_IMAGE }}:${{ steps.version.outputs.version }}"
+          echo "  - ${{ env.MLFLOW_IMAGE }}:${{ steps.version.outputs.version }}"
 
   update-k8s-manifests:
     name: Update Kubernetes Manifests
@@ -300,6 +316,7 @@ jobs:
             - **UI (Streamlit)**: `${{ env.STREAMLIT_IMAGE }}:${{ steps.version.outputs.version }}`
             - **Loadtest (Locust)**: `${{ env.LOCUST_IMAGE }}:${{ steps.version.outputs.version }}`
             - **Pipeline (Airflow)**: `${{ env.AIRFLOW_IMAGE }}:${{ steps.version.outputs.version }}`
+            - **MLflow**: `${{ env.MLFLOW_IMAGE }}:${{ steps.version.outputs.version }}`
             
             ### Kubernetes Manifests
             
@@ -317,6 +334,7 @@ jobs:
             docker pull ${{ env.STREAMLIT_IMAGE }}:${{ steps.version.outputs.version }}
             docker pull ${{ env.LOCUST_IMAGE }}:${{ steps.version.outputs.version }}
             docker pull ${{ env.AIRFLOW_IMAGE }}:${{ steps.version.outputs.version }}
+            docker pull ${{ env.MLFLOW_IMAGE }}:${{ steps.version.outputs.version }}
             ```
             
             ### Despliegue

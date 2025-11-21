@@ -34,6 +34,7 @@ env:
   STREAMLIT_IMAGE: aalbuez/mlops-prediction-ui
   LOCUST_IMAGE: aalbuez/mlops-prediction-loadtest
   AIRFLOW_IMAGE: aalbuez/mlops-prediction-pipeline
+  MLFLOW_IMAGE: aalbuez/mlops-prediction-mlflow
 
 jobs:
   lint:
@@ -131,6 +132,9 @@ jobs:
           - service: pipeline
             context: ./Projecto-Final/airflow
             dockerfile: ./Projecto-Final/airflow/Dockerfile
+          - service: mlflow
+            context: ./Projecto-Final
+            dockerfile: ./Projecto-Final/Dockerfile.mlflow
     
     steps:
       - name: Checkout code
@@ -161,6 +165,9 @@ jobs:
               ;;
             pipeline)
               echo "image=aalbuez/mlops-prediction-pipeline" >> $GITHUB_OUTPUT
+              ;;
+            mlflow)
+              echo "image=aalbuez/mlops-prediction-mlflow" >> $GITHUB_OUTPUT
               ;;
           esac
 
