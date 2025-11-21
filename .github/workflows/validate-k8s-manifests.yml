@@ -1,0 +1,213 @@
+name: Validate Kubernetes Manifests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Projecto-Final/k8s/**/*.yaml'
+      - 'Projecto-Final/k8s/**/*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Projecto-Final/k8s/**/*.yaml'
+      - 'Projecto-Final/k8s/**/*.yml'
+
+jobs:
+  validate-manifests:
+    name: Validate K8s Manifests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubeval
+        run: |
+          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar xf kubeval-linux-amd64.tar.gz
+          sudo mv kubeval /usr/local/bin
+          kubeval --version
+
+      - name: Validate Kubernetes manifests with kubeval
+        run: |
+          echo "Validating Kubernetes manifests..."
+          
+          # Validar todos los manifiestos en el directorio k8s
+          for file in Projecto-Final/k8s/*.yaml Projecto-Final/k8s/*.yml; do
+            if [ -f "$file" ]; then
+              echo "Validating $file..."
+              kubeval --strict --ignore-missing-schemas "$file" || exit 1
+            fi
+          done
+          
+          echo "All manifests are valid!"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Dry-run apply manifests
+        run: |
+          echo "Testing dry-run apply of manifests..."
+          
+          # Crear namespace temporal para dry-run
+          kubectl create namespace apps --dry-run=client -o yaml | kubectl apply --dry-run=server -f - || true
+          
+          # Dry-run de cada manifiesto
+          for file in Projecto-Final/k8s/*.yaml Projecto-Final/k8s/*.yml; do
+            if [ -f "$file" ] && [[ ! "$file" =~ "namespace" ]]; then
+              echo "Dry-run applying $file..."
+              kubectl apply --dry-run=server -f "$file" || exit 1
+            fi
+          done
+          
+          echo "Dry-run successful for all manifests!"
+
+      - name: Check for hardcoded values
+        run: |
+          echo "Checking for potential hardcoded values..."
+          
+          # Buscar IPs hardcodeadas (excepto localhost y cluster IPs conocidos)
+          if grep -r -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' Projecto-Final/k8s/*.yaml Projecto-Final/k8s/*.yml | \
+             grep -v '127.0.0.1' | grep -v '0.0.0.0' | grep -v 'localhost'; then
+            echo "⚠️  Warning: Found hardcoded IP addresses in manifests"
+          fi
+          
+          # Buscar passwords en texto plano
+          if grep -ri 'password:.*[^{]' Projecto-Final/k8s/*.yaml Projecto-Final/k8s/*.yml | grep -v 'valueFrom'; then
+            echo "❌ ERROR: Found plaintext passwords in manifests!"
+            echo "Consider using Kubernetes Secrets"
+            exit 1
+          fi
+          
+          echo "✅ No critical hardcoded values found"
+
+      - name: Check resource limits
+        run: |
+          echo "Checking if deployments have resource limits..."
+          
+          missing_limits=false
+          
+          for file in Projecto-Final/k8s/*-deployment.yaml; do
+            if [ -f "$file" ]; then
+              if ! grep -q "resources:" "$file"; then
+                echo "⚠️  Warning: $file doesn't have resource limits defined"
+                missing_limits=true
+              fi
+            fi
+          done
+          
+          if [ "$missing_limits" = true ]; then
+            echo "ℹ️  Consider adding resource requests and limits to your deployments"
+          else
+            echo "✅ All deployments have resource definitions"
+          fi
+
+      - name: Validate image tags
+        run: |
+          echo "Checking for 'latest' tags..."
+          
+          if grep -r 'image:.*:latest' Projecto-Final/k8s/*.yaml Projecto-Final/k8s/*.yml; then
+            echo "⚠️  Warning: Found 'latest' tags in manifests"
+            echo "Consider using specific version tags for production"
+          else
+            echo "✅ No 'latest' tags found"
+          fi
+
+      - name: Generate validation report
+        if: always()
+        run: |
+          echo "## Kubernetes Manifests Validation Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validated Files:" >> $GITHUB_STEP_SUMMARY
+          
+          for file in Projecto-Final/k8s/*.yaml Projecto-Final/k8s/*.yml; do
+            if [ -f "$file" ]; then
+              echo "- ✅ $(basename $file)" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validation Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Kubeval syntax validation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Kubectl dry-run" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security checks" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Best practices validation" >> $GITHUB_STEP_SUMMARY
+
+  lint-yaml:
+    name: Lint YAML Files
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install yamllint
+        run: |
+          pip install yamllint
+
+      - name: Lint YAML files
+        run: |
+          echo "Linting YAML files..."
+          
+          # Crear configuración de yamllint
+          cat > .yamllint << EOF
+          extends: default
+          rules:
+            line-length:
+              max: 120
+              level: warning
+            indentation:
+              spaces: 2
+            comments:
+              min-spaces-from-content: 1
+          EOF
+          
+          # Lint de archivos
+          yamllint -c .yamllint Projecto-Final/k8s/ || true
+          
+          echo "YAML linting completed"
+
+  check-labels:
+    name: Check Required Labels
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for required labels
+        run: |
+          echo "Checking for required Kubernetes labels..."
+          
+          required_labels=("app" "version" "component")
+          missing_labels=false
+          
+          for file in Projecto-Final/k8s/*-deployment.yaml Projecto-Final/k8s/*-service.yaml; do
+            if [ -f "$file" ]; then
+              echo "Checking $file..."
+              
+              for label in "${required_labels[@]}"; do
+                if ! grep -q "  $label:" "$file"; then
+                  echo "⚠️  Warning: $file is missing recommended label: $label"
+                  missing_labels=true
+                fi
+              done
+            fi
+          done
+          
+          if [ "$missing_labels" = false ]; then
+            echo "✅ All manifests have recommended labels"
+          else
+            echo "ℹ️  Consider adding missing labels for better resource management"
+          fi

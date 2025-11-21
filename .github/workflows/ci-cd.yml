@@ -233,10 +233,99 @@ jobs:
           python -c "import schemas; print('schemas.py is valid')"
           python -c "import mlflow_client; print('mlflow_client.py is valid')"
 
+  auto-tag:
+    name: Auto Generate Tag
+    runs-on: ubuntu-latest
+    needs: [lint, build-and-push]
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, 'chore(k8s): update manifests') &&
+      github.event.head_commit.author.name != 'github-actions[bot]'
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate tag name
+        id: generate_tag
+        run: |
+          DATE=$(date +%Y.%m.%d)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG_NAME="v${DATE}-${SHORT_SHA}"
+          
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          
+          echo "Generated tag: $TAG_NAME"
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          TAG_NAME="${{ steps.generate_tag.outputs.tag_name }}"
+          
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $TAG_NAME already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag $TAG_NAME does not exist, will create"
+          fi
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          TAG_NAME="${{ steps.generate_tag.outputs.tag_name }}"
+          
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git tag -a "$TAG_NAME" -m "Auto-generated release $TAG_NAME
+
+          Date: ${{ steps.generate_tag.outputs.date }}
+          Commit: ${{ steps.generate_tag.outputs.short_sha }}
+          Author: ${{ github.event.head_commit.author.name }}
+          Message: ${{ github.event.head_commit.message }}
+
+          Generated automatically by GitHub Actions"
+          
+          git push origin "$TAG_NAME"
+          
+          echo "Tag $TAG_NAME created and pushed"
+
+      - name: Generate summary
+        if: always()
+        run: |
+          TAG_NAME="${{ steps.generate_tag.outputs.tag_name }}"
+          TAG_EXISTS="${{ steps.check_tag.outputs.exists }}"
+          
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## Auto-Tagging Summary
+          
+          **Tag name:** \`$TAG_NAME\`
+          **Format:** \`vYYYY.MM.DD-{short_sha}\`
+          **Date:** ${{ steps.generate_tag.outputs.date }}
+          **Commit SHA:** ${{ steps.generate_tag.outputs.short_sha }}
+          EOF
+          
+          if [ "$TAG_EXISTS" = "true" ]; then
+            echo "**Status:** Tag already exists (skipped)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status:** Tag created successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Release workflow will start automatically" >> $GITHUB_STEP_SUMMARY
+          fi
+
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
-    needs: [lint, build-and-push, test-api]
+    needs: [lint, build-and-push, test-api, auto-tag]
     if: always() && github.event_name == 'push'
     
     steps:

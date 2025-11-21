@@ -1,0 +1,47 @@
+# yamllint configuration for Kubernetes manifests
+extends: default
+
+rules:
+  # Line length - más permisivo para manifiestos de K8s
+  line-length:
+    max: 150
+    level: warning
+
+  # Indentación - 2 espacios es estándar para YAML
+  indentation:
+    spaces: 2
+    indent-sequences: true
+
+  # Comentarios
+  comments:
+    min-spaces-from-content: 1
+    require-starting-space: true
+
+  # Llaves vacías permitidas
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+  # Brackets
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+
+  # Permitir líneas vacías
+  empty-lines:
+    max: 2
+
+  # Trailing spaces
+  trailing-spaces: enable
+
+  # Permitir documentos vacíos
+  document-start: disable
+
+  # Truthy values - importante para Kubernetes (permite yes/no, true/false)
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false
+
+ignore: |
+  *.enc.yaml
+  *secret*.yaml
