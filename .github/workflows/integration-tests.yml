@@ -9,7 +9,7 @@ on:
     branches: [main]
     paths:
       - 'Projecto-Final/**'
-      - 'docker-compose*.yml'
+      - 'docker compose*.yml'
   workflow_dispatch:
 
 permissions:
@@ -76,7 +76,7 @@ jobs:
         working-directory: ./Projecto-Final
         run: |
           echo "Starting infrastructure services..."
-          docker-compose up -d
+          docker compose up -d
           echo "Infrastructure stack started"
 
       - name: Wait for services to be healthy
@@ -92,42 +92,42 @@ jobs:
             echo "Checking services health... (${ELAPSED}s/${TIMEOUT}s)"
             
             # Check MinIO
-            if docker-compose ps minio | grep -q "healthy"; then
+            if docker compose ps minio | grep -q "healthy"; then
               echo "✅ MinIO is healthy"
             else
               echo "⏳ MinIO not ready yet"
             fi
             
             # Check MLflow DB
-            if docker-compose ps mlflow-db | grep -q "healthy"; then
+            if docker compose ps mlflow-db | grep -q "healthy"; then
               echo "✅ MLflow DB is healthy"
             else
               echo "⏳ MLflow DB not ready yet"
             fi
             
             # Check Raw DB
-            if docker-compose ps raw-db | grep -q "healthy"; then
+            if docker compose ps raw-db | grep -q "healthy"; then
               echo "✅ Raw DB is healthy"
             else
               echo "⏳ Raw DB not ready yet"
             fi
             
             # Check Clean DB
-            if docker-compose ps clean-db | grep -q "healthy"; then
+            if docker compose ps clean-db | grep -q "healthy"; then
               echo "✅ Clean DB is healthy"
             else
               echo "⏳ Clean DB not ready yet"
             fi
             
             # Check Airflow DB
-            if docker-compose ps airflow-db | grep -q "healthy"; then
+            if docker compose ps airflow-db | grep -q "healthy"; then
               echo "✅ Airflow DB is healthy"
             else
               echo "⏳ Airflow DB not ready yet"
             fi
             
             # Check if all critical services are healthy
-            if docker-compose ps minio mlflow-db raw-db clean-db airflow-db | grep -q "healthy.*healthy.*healthy.*healthy.*healthy"; then
+            if docker compose ps minio mlflow-db raw-db clean-db airflow-db | grep -q "healthy.*healthy.*healthy.*healthy.*healthy"; then
               echo "✅ All infrastructure services are healthy!"
               break
             fi
@@ -138,7 +138,7 @@ jobs:
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
             echo "❌ Timeout waiting for services to be healthy"
-            docker-compose ps
+            docker compose ps
             exit 1
           fi
 
@@ -161,7 +161,7 @@ jobs:
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
             echo "❌ MLflow did not become ready"
-            docker-compose logs mlflow
+            docker compose logs mlflow
             exit 1
           fi
 
@@ -193,17 +193,17 @@ jobs:
           
           # Test Raw DB
           echo "Testing Raw DB..."
-          docker-compose exec -T raw-db psql -U raw_user -d diabetic_raw -c "SELECT 1;" || exit 1
+          docker compose exec -T raw-db psql -U raw_user -d diabetic_raw -c "SELECT 1;" || exit 1
           echo "✅ Raw DB connection successful"
           
           # Test Clean DB
           echo "Testing Clean DB..."
-          docker-compose exec -T clean-db psql -U clean_user -d diabetic_clean -c "SELECT 1;" || exit 1
+          docker compose exec -T clean-db psql -U clean_user -d diabetic_clean -c "SELECT 1;" || exit 1
           echo "✅ Clean DB connection successful"
           
           # Test MLflow DB
           echo "Testing MLflow DB..."
-          docker-compose exec -T mlflow-db psql -U mlflow_user -d mlflow_db -c "SELECT 1;" || exit 1
+          docker compose exec -T mlflow-db psql -U mlflow_user -d mlflow_db -c "SELECT 1;" || exit 1
           echo "✅ MLflow DB connection successful"
 
       - name: Test MinIO Bucket
@@ -212,7 +212,7 @@ jobs:
           echo "Testing MinIO bucket..."
           
           # Check if bucket exists
-          docker-compose exec -T minio-mc mc ls minio/ || echo "MinIO MC container may have exited (this is normal)"
+          docker compose exec -T minio-mc mc ls minio/ || echo "MinIO MC container may have exited (this is normal)"
           
           # Test MinIO health
           if curl -f -s http://localhost:9000/minio/health/ready > /dev/null; then
@@ -265,7 +265,7 @@ jobs:
         working-directory: ./Projecto-Final
         run: |
           echo "Starting applications stack..."
-          docker-compose -f docker-compose.apps.yml up -d
+          docker compose -f docker compose.apps.yml up -d
           echo "Applications stack started"
 
       - name: Wait for API to be ready
@@ -287,7 +287,7 @@ jobs:
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
             echo "❌ API did not become ready"
-            docker-compose -f docker-compose.apps.yml logs api
+            docker compose -f docker compose.apps.yml logs api
             exit 1
           fi
 
@@ -310,7 +310,7 @@ jobs:
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
             echo "❌ Streamlit did not become ready"
-            docker-compose -f docker-compose.apps.yml logs streamlit
+            docker compose -f docker compose.apps.yml logs streamlit
             exit 1
           fi
 
@@ -567,8 +567,8 @@ jobs:
           echo "Collecting logs from failed services..."
           mkdir -p logs
           
-          docker-compose logs > logs/infrastructure.log 2>&1 || true
-          docker-compose -f docker-compose.apps.yml logs > logs/applications.log 2>&1 || true
+          docker compose logs > logs/infrastructure.log 2>&1 || true
+          docker compose -f docker compose.apps.yml logs > logs/applications.log 2>&1 || true
           
           echo "Logs collected"
 
@@ -587,10 +587,10 @@ jobs:
           echo "Cleaning up all services..."
           
           # Stop applications
-          docker-compose -f docker-compose.apps.yml down -v || true
+          docker compose -f docker compose.apps.yml down -v || true
           
           # Stop infrastructure
-          docker-compose down -v || true
+          docker compose down -v || true
           
           # Remove any orphaned containers
           docker ps -aq --filter "name=mlops-integration-test" | xargs -r docker rm -f || true
