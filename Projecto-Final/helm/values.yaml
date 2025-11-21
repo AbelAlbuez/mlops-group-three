@@ -89,7 +89,7 @@ airflowDb:
 
 # ============ AIRFLOW (2.9.x) ============
 airflow:
-  image: aalbuez/mlops-prediction-pipeline:main-aaab1bc
+  image: aalbuez/mlops-prediction-pipeline:main-b0d978a
   executor: LocalExecutor
 
   web:
