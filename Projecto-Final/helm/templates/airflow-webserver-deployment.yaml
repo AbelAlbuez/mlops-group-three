@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: airflow-webserver
-          image: {{ .Values.airflow.image }}
+          image: "{{ .Values.airflowImage.repository }}:{{ .Values.airflowImage.tag }}"
           env:
             - name: AIRFLOW_UID
               value: "50000"

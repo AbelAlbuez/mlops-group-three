@@ -38,8 +38,8 @@ mlflowDb:
 # ============ MLFLOW SERVER ============
 mlflow:
   image:
-    repository: aalbuez/mlops-prediction-mlflow:main-d9477cd
-    tag: "latest"
+    repository: aalbuez/mlops-prediction-mlflow
+    tag: "main-b0d978a"
   service:
     type: ClusterIP
     port: 5000
@@ -88,8 +88,12 @@ airflowDb:
     size: 5Gi
 
 # ============ AIRFLOW (2.9.x) ============
+airflowImage:
+  repository: aalbuez/mlops-prediction-pipeline
+  tag: "main-b0d978a"
+
 airflow:
-  image: aalbuez/mlops-prediction-pipeline:main-b0d978a
+  image: apache/airflow:2.9.3
   executor: LocalExecutor
 
   web:
