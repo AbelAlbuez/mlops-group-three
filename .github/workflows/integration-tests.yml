@@ -79,6 +79,44 @@ jobs:
           docker compose up -d
           echo "Infrastructure stack started"
 
+      - name: Check airflow-init status and logs
+        working-directory: ./Projecto-Final
+        run: |
+          echo "Checking airflow-init status..."
+          sleep 10
+          
+          # Wait for airflow-init to complete or fail
+          MAX_WAIT=120
+          ELAPSED=0
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            STATUS=$(docker compose ps airflow-init 2>/dev/null | grep airflow-init | awk '{print $NF}' || echo "not found")
+            
+            if [ "$STATUS" = "Exited (0)" ]; then
+              echo "✅ airflow-init completed successfully"
+              docker compose logs airflow-init
+              break
+            elif [ "$STATUS" = "Exited (1)" ]; then
+              echo "❌ airflow-init failed with exit code 1"
+              echo "📋 airflow-init logs:"
+              docker compose logs airflow-init
+              exit 1
+            elif [ "$STATUS" != "not found" ] && [ "$STATUS" != "Up" ]; then
+              echo "⏳ airflow-init status: $STATUS"
+              break
+            fi
+            
+            sleep 2
+            ELAPSED=$((ELAPSED + 2))
+          done
+          
+          if [ $ELAPSED -ge $MAX_WAIT ]; then
+            echo "⚠️  Timeout waiting for airflow-init"
+            echo "📋 airflow-init logs:"
+            docker compose logs airflow-init || true
+            echo "📋 airflow-init status:"
+            docker compose ps airflow-init || true
+          fi
+
       - name: Wait for services to be healthy
         working-directory: ./Projecto-Final
         run: |

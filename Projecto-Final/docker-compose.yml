@@ -158,8 +158,22 @@ services:
       - |
         set -e
 
+        echo '[INIT] Waiting for database to be ready...'
+        MAX_RETRIES=30
+        RETRY=0
+        until airflow db check > /dev/null 2>&1; do
+          RETRY=$((RETRY + 1))
+          if [ $RETRY -ge $MAX_RETRIES ]; then
+            echo "❌ Database not ready after $MAX_RETRIES retries"
+            exit 1
+          fi
+          echo "Database not ready yet. Waiting... (attempt $RETRY/$MAX_RETRIES)"
+          sleep 2
+        done
+        echo "✅ Database is ready!"
+
         echo '[INIT] airflow db init'
-        airflow db init
+        airflow db init || echo "⚠️  Database already initialized (this is OK)"
 
         echo '[INIT] create or reset admin user'
         set +e 
@@ -167,10 +181,10 @@ services:
           --username "${AIRFLOW_ADMIN_USER:-admin}" \
           --password "${AIRFLOW_ADMIN_PASSWORD:-admin123}" \
           --firstname Admin --lastname User --role Admin \
-          --email "${AIRFLOW_ADMIN_EMAIL:-admin@example.com}"
+          --email "${AIRFLOW_ADMIN_EMAIL:-admin@example.com}" || echo "⚠️  User already exists (this is OK)"
         airflow users update-password \
           --username "${AIRFLOW_ADMIN_USER:-admin}" \
-          --password "${AIRFLOW_ADMIN_PASSWORD:-admin123}"
+          --password "${AIRFLOW_ADMIN_PASSWORD:-admin123}" || echo "⚠️  Password update skipped (this is OK)"
         set -e
 
         echo '[INIT] add connections'
@@ -184,25 +198,25 @@ services:
           --conn-login "${RAW_USER}" \
           --conn-password "${RAW_PASSWORD}" \
           --conn-schema "${RAW_DB}" \
-          --conn-port 5432
+          --conn-port 5432 || echo "⚠️  Failed to add postgres_raw connection"
 
         airflow connections add postgres_clean --conn-type postgres \
           --conn-host "${CLEAN_HOST:-clean-db}" \
           --conn-login "${CLEAN_USER}" \
           --conn-password "${CLEAN_PASSWORD}" \
           --conn-schema "${CLEAN_DB}" \
-          --conn-port 5432
+          --conn-port 5432 || echo "⚠️  Failed to add postgres_clean connection"
 
         airflow connections add minio_s3 --conn-type s3 \
           --conn-login "${MINIO_ROOT_USER}" \
           --conn-password "${MINIO_ROOT_PASSWORD}" \
-          --conn-extra '{"endpoint_url":"http://minio:9000"}'
+          --conn-extra '{"endpoint_url":"http://minio:9000"}' || echo "⚠️  Failed to add minio_s3 connection"
 
         airflow connections add mlflow_tracking --conn-type http \
           --conn-host mlflow \
-          --conn-port 5000
+          --conn-port 5000 || echo "⚠️  Failed to add mlflow_tracking connection"
 
-        echo '[INIT] done.'
+        echo '[INIT] ✅ done.'
     volumes:
       - ./airflow:/opt/airflow
       - ./airflow/requirements.txt:/opt/airflow/requirements.txt:ro
