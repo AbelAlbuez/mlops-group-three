@@ -23,7 +23,7 @@ on:
       - 'Projecto-Final/docker-compose*.yml'
 
 permissions:
-  contents: read
+  contents: write
   security-events: write
   actions: read
 
@@ -201,6 +201,136 @@ jobs:
         run: |
           echo "Image ${{ matrix.service }} pushed with digest: ${{ steps.build.outputs.digest }}"
 
+  update-k8s-manifests:
+    name: Update Kubernetes Manifests
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, 'chore(k8s): update manifests')
+    permissions:
+      contents: write
+      actions: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract commit SHA
+        id: commit
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          IMAGE_TAG="main-${SHORT_SHA}"
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "📦 Commit SHA: ${SHORT_SHA}"
+          echo "🏷️  Image tag: ${IMAGE_TAG}"
+
+      - name: Update API deployment manifest
+        run: |
+          IMAGE_TAG="${{ steps.commit.outputs.image_tag }}"
+          FILE="Projecto-Final/k8s/api-deployment.yaml"
+          
+          if [ -f "$FILE" ]; then
+            echo "Updating $FILE with tag $IMAGE_TAG..."
+            # Update image tag, matching any existing tag format
+            sed -i "s|image: ${{ env.API_IMAGE }}:[^[:space:]]*|image: ${{ env.API_IMAGE }}:${IMAGE_TAG}|g" "$FILE"
+            
+            if grep -q "${{ env.API_IMAGE }}:${IMAGE_TAG}" "$FILE"; then
+              echo "✅ API image updated to ${IMAGE_TAG}"
+            else
+              echo "⚠️  Warning: API image may not have been updated"
+            fi
+          else
+            echo "⚠️  Warning: $FILE not found"
+          fi
+
+      - name: Update Streamlit deployment manifest
+        run: |
+          IMAGE_TAG="${{ steps.commit.outputs.image_tag }}"
+          FILE="Projecto-Final/k8s/streamlit-deployment.yaml"
+          
+          if [ -f "$FILE" ]; then
+            echo "Updating $FILE with tag $IMAGE_TAG..."
+            # Update image tag, matching any existing tag format
+            sed -i "s|image: ${{ env.STREAMLIT_IMAGE }}:[^[:space:]]*|image: ${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}|g" "$FILE"
+            
+            if grep -q "${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}" "$FILE"; then
+              echo "✅ Streamlit image updated to ${IMAGE_TAG}"
+            else
+              echo "⚠️  Warning: Streamlit image may not have been updated"
+            fi
+          else
+            echo "⚠️  Warning: $FILE not found"
+          fi
+
+      - name: Update version labels
+        run: |
+          SHORT_SHA="${{ steps.commit.outputs.short_sha }}"
+          
+          for file in Projecto-Final/k8s/*-deployment.yaml; do
+            if [ -f "$file" ]; then
+              echo "Updating version label in $file..."
+              
+              if grep -q "version:" "$file"; then
+                sed -i "s|version:.*|version: \"${SHORT_SHA}\"|g" "$file"
+              fi
+            fi
+          done
+          
+          echo "✅ Version labels updated"
+
+      - name: Check if there are changes
+        id: check_changes
+        run: |
+          if git diff --quiet; then
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No changes detected in manifests"
+          else
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Changes detected in manifests"
+            echo "📋 Changed files:"
+            git diff --name-only
+          fi
+
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          SHORT_SHA="${{ steps.commit.outputs.short_sha }}"
+          IMAGE_TAG="${{ steps.commit.outputs.image_tag }}"
+          
+          echo "📝 Preparing to commit manifest updates..."
+          echo "Commit SHA: ${SHORT_SHA}"
+          echo "Image tag: ${IMAGE_TAG}"
+          
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          echo "📦 Staging Kubernetes manifest files..."
+          git add Projecto-Final/k8s/
+          
+          echo "📋 Showing changes to be committed:"
+          git diff --cached --name-only
+          
+          echo "💾 Creating commit..."
+          git commit -m "chore(k8s): update manifests to ${IMAGE_TAG}
+
+          - Updated API image to ${{ env.API_IMAGE }}:${IMAGE_TAG}
+          - Updated Streamlit image to ${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}
+          - Updated version labels to ${SHORT_SHA}
+          
+          Commit: ${SHORT_SHA}
+          Auto-generated by GitHub Actions on push to main"
+          
+          echo "🚀 Pushing changes to main branch..."
+          git push origin HEAD:main
+          
+          echo "✅ Successfully committed and pushed manifest updates"
+
   test-api:
     name: Test API
     runs-on: ubuntu-latest
@@ -250,7 +380,7 @@ jobs:
   auto-tag:
     name: Auto Generate Tag
     runs-on: ubuntu-latest
-    needs: [lint, build-and-push]
+    needs: [lint, build-and-push, update-k8s-manifests]
     if: |
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
@@ -339,7 +469,7 @@ jobs:
   notify:
     name: Notify Status
     runs-on: ubuntu-latest
-    needs: [lint, build-and-push, test-api, auto-tag]
+    needs: [lint, build-and-push, test-api, update-k8s-manifests, auto-tag]
     if: always() && github.event_name == 'push'
     
     steps:
