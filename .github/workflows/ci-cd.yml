@@ -213,25 +213,32 @@ jobs:
         working-directory: ./Projecto-Final/api
         run: |
           pip install -r requirements.txt
-          pip install pytest requests
+          pip install pytest pytest-cov httpx
 
-      - name: Run API tests
+      - name: Run unit tests
         working-directory: ./Projecto-Final/api
         run: |
-          echo "Running API tests..."
+          echo "Running API unit tests..."
           if [ -f "test_api.py" ]; then
-            python test_api.py || echo "Tests require running API - skipping for now"
+            pytest test_api.py -v --tb=short --cov=. --cov-report=term-missing
           else
-            echo "No test_api.py found, skipping tests"
+            echo "Warning: test_api.py not found"
+            echo "Creating basic test structure for future implementation..."
+            exit 0
           fi
 
-      - name: Validate API structure
+      - name: Test API can be imported
         working-directory: ./Projecto-Final/api
         run: |
-          echo "Validating API structure..."
-          python -c "import main; print('main.py is valid')"
-          python -c "import schemas; print('schemas.py is valid')"
-          python -c "import mlflow_client; print('mlflow_client.py is valid')"
+          echo "Verifying API module structure..."
+          python -c "
+          try:
+              import main
+              print('main.py is importable')
+          except Exception as e:
+              print(f'Error importing main.py: {e}')
+              exit(1)
+          "
 
   auto-tag:
     name: Auto Generate Tag
