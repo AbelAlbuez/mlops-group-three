@@ -103,3 +103,14 @@ airflow:
 
   # Aquí podrías mapear variables que tenías en .env
   extraEnv: {}
+
+gitSync:
+  enabled: true
+
+  repo: "https://github.com/AbelAlbuez/mlops-group-three.git"
+  branch: "main"
+  rev: "HEAD"
+
+  root: "/git"
+  dest: "dags"  
+  wait: 30      
