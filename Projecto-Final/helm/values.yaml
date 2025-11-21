@@ -38,7 +38,7 @@ mlflowDb:
 # ============ MLFLOW SERVER ============
 mlflow:
   image:
-    repository: your-dockerhub-user/mlflow
+    repository: aalbuez/mlops-prediction-mlflow:main-d9477cd
     tag: "latest"
   service:
     type: ClusterIP
