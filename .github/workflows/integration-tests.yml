@@ -9,7 +9,7 @@ on:
     branches: [main]
     paths:
       - 'Projecto-Final/**'
-      - 'docker compose*.yml'
+      - 'docker-compose*.yml'
   workflow_dispatch:
 
 permissions:
@@ -265,7 +265,7 @@ jobs:
         working-directory: ./Projecto-Final
         run: |
           echo "Starting applications stack..."
-          docker compose -f docker compose.apps.yml up -d
+          docker compose -f docker-compose.apps.yml up -d
           echo "Applications stack started"
 
       - name: Wait for API to be ready
@@ -287,7 +287,7 @@ jobs:
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
             echo "❌ API did not become ready"
-            docker compose -f docker compose.apps.yml logs api
+            docker compose -f docker-compose.apps.yml logs api
             exit 1
           fi
 
@@ -310,7 +310,7 @@ jobs:
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
             echo "❌ Streamlit did not become ready"
-            docker compose -f docker compose.apps.yml logs streamlit
+            docker compose -f docker-compose.apps.yml logs streamlit
             exit 1
           fi
 
@@ -568,7 +568,7 @@ jobs:
           mkdir -p logs
           
           docker compose logs > logs/infrastructure.log 2>&1 || true
-          docker compose -f docker compose.apps.yml logs > logs/applications.log 2>&1 || true
+          docker compose -f docker-compose.apps.yml logs > logs/applications.log 2>&1 || true
           
           echo "Logs collected"
 
@@ -587,7 +587,7 @@ jobs:
           echo "Cleaning up all services..."
           
           # Stop applications
-          docker compose -f docker compose.apps.yml down -v || true
+          docker compose -f docker-compose.apps.yml down -v || true
           
           # Stop infrastructure
           docker compose down -v || true
