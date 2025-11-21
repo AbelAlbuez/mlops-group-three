@@ -161,7 +161,8 @@ jobs:
           
           if [ -f "$FILE" ]; then
             echo "Updating $FILE with version $VERSION..."
-            sed -i "s|image: ${{ env.API_IMAGE }}:.*|image: ${{ env.API_IMAGE }}:${VERSION}|g" "$FILE"
+            # Update image tag, matching any existing tag format (main-{sha}, latest, version, etc.)
+            sed -i "s|image: ${{ env.API_IMAGE }}:[^[:space:]]*|image: ${{ env.API_IMAGE }}:${VERSION}|g" "$FILE"
             
             if grep -q "${{ env.API_IMAGE }}:${VERSION}" "$FILE"; then
               echo "✅ API image updated to ${VERSION}"
@@ -179,7 +180,8 @@ jobs:
           
           if [ -f "$FILE" ]; then
             echo "Updating $FILE with version $VERSION..."
-            sed -i "s|image: ${{ env.STREAMLIT_IMAGE }}:.*|image: ${{ env.STREAMLIT_IMAGE }}:${VERSION}|g" "$FILE"
+            # Update image tag, matching any existing tag format (main-{sha}, latest, version, etc.)
+            sed -i "s|image: ${{ env.STREAMLIT_IMAGE }}:[^[:space:]]*|image: ${{ env.STREAMLIT_IMAGE }}:${VERSION}|g" "$FILE"
             
             if grep -q "${{ env.STREAMLIT_IMAGE }}:${VERSION}" "$FILE"; then
               echo "✅ Streamlit image updated to ${VERSION}"
