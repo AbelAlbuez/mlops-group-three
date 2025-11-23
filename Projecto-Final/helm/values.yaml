@@ -39,7 +39,7 @@ mlflowDb:
 mlflow:
   image:
     repository: aalbuez/mlops-prediction-mlflow
-    tag: "main-b0d978a"
+    tag: "main-dc09cd7"
   service:
     type: ClusterIP
     port: 5000
@@ -89,7 +89,7 @@ airflowDb:
 
 # ============ AIRFLOW ============
 airflow:
-  image: aalbuez/mlops-prediction-pipeline:main-b0d978a
+  image: aalbuez/mlops-prediction-pipeline:main-dc09cd7
   executor: LocalExecutor
 
   web:
