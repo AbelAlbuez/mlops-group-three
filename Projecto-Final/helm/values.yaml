@@ -87,13 +87,9 @@ airflowDb:
     storageClassName: microk8s-hostpath
     size: 5Gi
 
-# ============ AIRFLOW (2.9.x) ============
-airflowImage:
-  repository: aalbuez/mlops-prediction-pipeline
-  tag: "main-b0d978a"
-
+# ============ AIRFLOW ============
 airflow:
-  image: apache/airflow:2.9.3
+  image: aalbuez/mlops-prediction-pipeline:main-b0d978a
   executor: LocalExecutor
 
   web:
@@ -102,15 +98,4 @@ airflow:
       port: 8080
 
   # Aquí podrías mapear variables que tenías en .env
-  extraEnv: {}
-
-gitSync:
-  enabled: true
-
-  repo: "https://github.com/AbelAlbuez/mlops-group-three.git"
-  branch: "main"
-  rev: "HEAD"
-
-  root: "/git"
-  dest: "dags"  
-  wait: 30      
+  extraEnv: {}  

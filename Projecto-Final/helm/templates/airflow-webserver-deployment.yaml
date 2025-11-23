@@ -12,9 +12,6 @@ spec:
       labels:
         app: {{ include "mlops-stack.fullname" . }}-airflow-webserver
     spec:
-      volumes:
-        - name: dags
-          emptyDir: {}
       containers:
         - name: airflow-webserver
           image: {{ .Values.airflow.image }}
@@ -35,32 +32,9 @@ spec:
             - "webserver"
           ports:
             - containerPort: {{ .Values.airflow.web.service.port }}
-          volumeMounts:
-            - name: dags
-              mountPath: /opt/airflow/dags
           livenessProbe:
             httpGet:
               path: /health
               port: {{ .Values.airflow.web.service.port }}
             initialDelaySeconds: 15
             periodSeconds: 10
-{{- if .Values.airflow.gitSync.enabled }}
-        - name: git-sync
-          image: "k8s.gcr.io/git-sync/git-sync:v3.6.5"
-          env:
-            - name: GIT_SYNC_REPO
-              value: {{ .Values.airflow.gitSync.repo | quote }}
-            - name: GIT_SYNC_BRANCH
-              value: {{ .Values.airflow.gitSync.branch | quote }}
-            - name: GIT_SYNC_REV
-              value: {{ .Values.airflow.gitSync.rev | quote }}
-            - name: GIT_SYNC_ROOT
-              value: {{ .Values.airflow.gitSync.root | quote }}
-            - name: GIT_SYNC_DEST
-              value: {{ .Values.airflow.gitSync.dest | quote }}
-            - name: GIT_SYNC_WAIT
-              value: "{{ .Values.airflow.gitSync.wait }}"
-          volumeMounts:
-            - name: dags
-              mountPath: {{ .Values.airflow.gitSync.root }}
-{{- end }}
