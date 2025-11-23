@@ -32,7 +32,7 @@ spec:
             - name: MLFLOW_TRACKING_URI
               value: http://10.43.100.93:8018
             - name: MODEL_NAME
-              value: diabetic_risk_model
+              value: real_estate_rf
           image: aalbuez/mlops-prediction-api:main-dc09cd7
           name: mlops-prediction-api
           ports:
