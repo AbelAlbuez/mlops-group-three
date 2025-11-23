@@ -23,7 +23,7 @@ spec:
             - name: AIRFLOW__CORE__LOAD_EXAMPLES
               value: "False"
             - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-              value: "postgresql+psycopg2://{{ .Values.airflowDb.user }}:{{ .Values.airflowDb.password }}@{{ include "mlops-stack.fullname" . }}-airflow-db:5432/{{ .Values.airflowDb.dbName }}
+              value: "postgresql+psycopg2://{{ .Values.airflowDb.user }}:{{ .Values.airflowDb.password }}@{{ include "mlops-stack.fullname" . }}-airflow-db:5432/{{ .Values.airflowDb.dbName }}"
             - name: PYTHONWARNINGS
               value: "ignore::SyntaxWarning"
             - name: AIRFLOW__CORE__DAGS_FOLDER
