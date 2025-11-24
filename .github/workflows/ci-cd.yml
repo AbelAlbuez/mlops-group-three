@@ -208,7 +208,7 @@ jobs:
     if: |
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      !contains(github.event.head_commit.message, 'chore(k8s): update manifests')
+      github.event.head_commit.author.name != 'github-actions[bot]'
     permissions:
       contents: write
       actions: read
@@ -220,40 +220,85 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Configure Git
+        run: |
+          echo "⚙️  Configuring Git user and email..."
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git config --local pull.rebase true
+          echo "✅ Git configured"
+
       - name: Pull latest changes
         run: |
           echo "🔄 Pulling latest changes from main..."
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git pull origin main --rebase || git pull origin main --no-rebase
+          echo "Current branch: $(git branch --show-current)"
+          echo "Current commit: $(git rev-parse HEAD)"
+          
+          # Try rebase first, fallback to merge if rebase fails
+          if git pull origin main --rebase; then
+            echo "✅ Successfully pulled with rebase"
+          else
+            echo "⚠️  Rebase failed, trying merge..."
+            git pull origin main --no-rebase || {
+              echo "❌ Pull failed. Current status:"
+              git status
+              git log --oneline -5
+              exit 1
+            }
+            echo "✅ Successfully pulled with merge"
+          fi
+          
+          echo "Latest commit after pull: $(git rev-parse HEAD)"
 
       - name: Extract commit SHA
         id: commit
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           IMAGE_TAG="main-${SHORT_SHA}"
+          FULL_SHA=$(git rev-parse HEAD)
+          
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "📦 Commit SHA: ${SHORT_SHA}"
-          echo "🏷️  Image tag: ${IMAGE_TAG}"
+          echo "full_sha=${FULL_SHA}" >> $GITHUB_OUTPUT
+          
+          echo "📦 Commit Information:"
+          echo "  Full SHA: ${FULL_SHA}"
+          echo "  Short SHA: ${SHORT_SHA}"
+          echo "  Image tag: ${IMAGE_TAG}"
 
       - name: Update API deployment manifest
         run: |
           IMAGE_TAG="${{ steps.commit.outputs.image_tag }}"
           FILE="Projecto-Final/k8s/api-deployment.yaml"
           
-          if [ -f "$FILE" ]; then
-            echo "Updating $FILE with tag $IMAGE_TAG..."
-            # Update image tag, matching any existing tag format
-            sed -i "s|image: ${{ env.API_IMAGE }}:[^[:space:]]*|image: ${{ env.API_IMAGE }}:${IMAGE_TAG}|g" "$FILE"
-            
-            if grep -q "${{ env.API_IMAGE }}:${IMAGE_TAG}" "$FILE"; then
-              echo "✅ API image updated to ${IMAGE_TAG}"
-            else
-              echo "⚠️  Warning: API image may not have been updated"
-            fi
+          if [ ! -f "$FILE" ]; then
+            echo "❌ Error: $FILE not found"
+            exit 1
+          fi
+          
+          echo "📝 Updating $FILE with tag $IMAGE_TAG..."
+          echo "Current image in file:"
+          grep "image: ${{ env.API_IMAGE }}" "$FILE" || echo "  (not found)"
+          
+          # Update image tag, matching any existing tag format
+          if sed -i.bak "s|image: ${{ env.API_IMAGE }}:[^[:space:]]*|image: ${{ env.API_IMAGE }}:${IMAGE_TAG}|g" "$FILE"; then
+            rm -f "${FILE}.bak"
+            echo "✅ sed command executed successfully"
           else
-            echo "⚠️  Warning: $FILE not found"
+            echo "❌ sed command failed"
+            exit 1
+          fi
+          
+          # Verify the update
+          if grep -q "${{ env.API_IMAGE }}:${IMAGE_TAG}" "$FILE"; then
+            echo "✅ API image updated to ${IMAGE_TAG}"
+            echo "Updated image in file:"
+            grep "image: ${{ env.API_IMAGE }}" "$FILE"
+          else
+            echo "❌ Error: API image was not updated correctly"
+            echo "File contents:"
+            cat "$FILE"
+            exit 1
           fi
 
       - name: Update Streamlit deployment manifest
@@ -261,47 +306,79 @@ jobs:
           IMAGE_TAG="${{ steps.commit.outputs.image_tag }}"
           FILE="Projecto-Final/k8s/streamlit-deployment.yaml"
           
-          if [ -f "$FILE" ]; then
-            echo "Updating $FILE with tag $IMAGE_TAG..."
-            # Update image tag, matching any existing tag format
-            sed -i "s|image: ${{ env.STREAMLIT_IMAGE }}:[^[:space:]]*|image: ${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}|g" "$FILE"
-            
-            if grep -q "${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}" "$FILE"; then
-              echo "✅ Streamlit image updated to ${IMAGE_TAG}"
-            else
-              echo "⚠️  Warning: Streamlit image may not have been updated"
-            fi
+          if [ ! -f "$FILE" ]; then
+            echo "❌ Error: $FILE not found"
+            exit 1
+          fi
+          
+          echo "📝 Updating $FILE with tag $IMAGE_TAG..."
+          echo "Current image in file:"
+          grep "image: ${{ env.STREAMLIT_IMAGE }}" "$FILE" || echo "  (not found)"
+          
+          # Update image tag, matching any existing tag format
+          if sed -i.bak "s|image: ${{ env.STREAMLIT_IMAGE }}:[^[:space:]]*|image: ${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}|g" "$FILE"; then
+            rm -f "${FILE}.bak"
+            echo "✅ sed command executed successfully"
           else
-            echo "⚠️  Warning: $FILE not found"
+            echo "❌ sed command failed"
+            exit 1
+          fi
+          
+          # Verify the update
+          if grep -q "${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}" "$FILE"; then
+            echo "✅ Streamlit image updated to ${IMAGE_TAG}"
+            echo "Updated image in file:"
+            grep "image: ${{ env.STREAMLIT_IMAGE }}" "$FILE"
+          else
+            echo "❌ Error: Streamlit image was not updated correctly"
+            echo "File contents:"
+            cat "$FILE"
+            exit 1
           fi
 
       - name: Update version labels
         run: |
           SHORT_SHA="${{ steps.commit.outputs.short_sha }}"
           
+          echo "📝 Updating version labels to ${SHORT_SHA}..."
+          
           for file in Projecto-Final/k8s/*-deployment.yaml; do
             if [ -f "$file" ]; then
-              echo "Updating version label in $file..."
+              echo "  Processing $file..."
               
               if grep -q "version:" "$file"; then
-                sed -i "s|version:.*|version: \"${SHORT_SHA}\"|g" "$file"
+                if sed -i.bak "s|version:.*|version: \"${SHORT_SHA}\"|g" "$file"; then
+                  rm -f "${file}.bak"
+                  echo "    ✅ Version label updated"
+                else
+                  echo "    ⚠️  Failed to update version label"
+                fi
+              else
+                echo "    ℹ️  No version label found (this is OK)"
               fi
             fi
           done
           
-          echo "✅ Version labels updated"
+          echo "✅ Version labels update completed"
 
       - name: Check if there are changes
         id: check_changes
         run: |
+          echo "🔍 Checking for changes in manifests..."
+          
           if git diff --quiet; then
             echo "changes=false" >> $GITHUB_OUTPUT
             echo "ℹ️  No changes detected in manifests"
+            echo "  (Manifests are already up to date)"
           else
             echo "changes=true" >> $GITHUB_OUTPUT
             echo "✅ Changes detected in manifests"
+            echo ""
             echo "📋 Changed files:"
             git diff --name-only
+            echo ""
+            echo "📊 Diff summary:"
+            git diff --stat
           fi
 
       - name: Commit and push changes
@@ -309,34 +386,96 @@ jobs:
         run: |
           SHORT_SHA="${{ steps.commit.outputs.short_sha }}"
           IMAGE_TAG="${{ steps.commit.outputs.image_tag }}"
+          FULL_SHA="${{ steps.commit.outputs.full_sha }}"
           
           echo "📝 Preparing to commit manifest updates..."
-          echo "Commit SHA: ${SHORT_SHA}"
-          echo "Image tag: ${IMAGE_TAG}"
+          echo "  Commit SHA: ${SHORT_SHA} (${FULL_SHA})"
+          echo "  Image tag: ${IMAGE_TAG}"
+          echo "  Author: ${GITHUB_ACTOR}"
           
+          # Ensure git is configured (should already be, but just in case)
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
           echo "📦 Staging Kubernetes manifest files..."
           git add Projecto-Final/k8s/
           
-          echo "📋 Showing changes to be committed:"
+          echo "📋 Files to be committed:"
           git diff --cached --name-only
+          echo ""
+          echo "📊 Changes summary:"
+          git diff --cached --stat
           
           echo "💾 Creating commit..."
-          git commit -m "chore(k8s): update manifests to ${IMAGE_TAG}
+          COMMIT_MSG="chore(k8s): update manifests to ${IMAGE_TAG}
 
-          - Updated API image to ${{ env.API_IMAGE }}:${IMAGE_TAG}
-          - Updated Streamlit image to ${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}
-          - Updated version labels to ${SHORT_SHA}
+Updated Kubernetes deployment manifests with latest image tags:
+
+- API: ${{ env.API_IMAGE }}:${IMAGE_TAG}
+- Streamlit: ${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}
+- Version labels: ${SHORT_SHA}
+
+Build Information:
+- Commit: ${FULL_SHA} (${SHORT_SHA})
+- Triggered by: ${GITHUB_ACTOR}
+- Workflow: ${GITHUB_WORKFLOW}
+- Run: ${GITHUB_RUN_ID}
+
+Auto-generated by GitHub Actions on push to main"
           
-          Commit: ${SHORT_SHA}
-          Auto-generated by GitHub Actions on push to main"
+          if git commit -m "$COMMIT_MSG"; then
+            echo "✅ Commit created successfully"
+          else
+            echo "❌ Failed to create commit"
+            exit 1
+          fi
           
           echo "🚀 Pushing changes to main branch..."
-          git push origin HEAD:main
+          if git push origin HEAD:main; then
+            echo "✅ Successfully pushed to main"
+            echo "🔗 Commit URL: https://github.com/${GITHUB_REPOSITORY}/commit/$(git rev-parse HEAD)"
+          else
+            echo "❌ Failed to push to main"
+            echo "Current git status:"
+            git status
+            echo "Recent commits:"
+            git log --oneline -5
+            exit 1
+          fi
+
+      - name: Generate summary
+        if: always()
+        run: |
+          SHORT_SHA="${{ steps.commit.outputs.short_sha }}"
+          IMAGE_TAG="${{ steps.commit.outputs.image_tag }}"
+          CHANGES="${{ steps.check_changes.outputs.changes }}"
           
-          echo "✅ Successfully committed and pushed manifest updates"
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 📦 Kubernetes Manifests Update Summary
+          
+          **Status:** ${{ job.status }}
+          **Commit SHA:** ${SHORT_SHA}
+          **Image Tag:** ${IMAGE_TAG}
+          
+          ### Updated Images:
+          - **API**: \`${{ env.API_IMAGE }}:${IMAGE_TAG}\`
+          - **Streamlit**: \`${{ env.STREAMLIT_IMAGE }}:${IMAGE_TAG}\`
+          
+          ### Changes:
+          EOF
+          
+          if [ "$CHANGES" = "true" ]; then
+            echo "✅ Manifests were updated and committed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Updated Files:" >> $GITHUB_STEP_SUMMARY
+            git diff HEAD~1 --name-only Projecto-Final/k8s/ >> $GITHUB_STEP_SUMMARY || echo "- Manifest files" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️  No changes were needed (manifests already up to date)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Generated automatically by GitHub Actions*" >> $GITHUB_STEP_SUMMARY
 
   test-api:
     name: Test API
