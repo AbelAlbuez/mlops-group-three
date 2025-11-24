@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   annotations:
     kompose.cmd: kompose convert -f docker-compose.apps.yml -o komposefiles/ --volumes hostPath
-    kompose.version: "37aee71"
+    kompose.version: "9d91f95"
   labels:
     io.kompose.service: streamlit
   name: streamlit
@@ -17,7 +17,7 @@ spec:
     metadata:
       annotations:
         kompose.cmd: kompose convert -f docker-compose.apps.yml -o komposefiles/ --volumes hostPath
-        kompose.version: "37aee71"
+        kompose.version: "9d91f95"
       labels:
         io.kompose.service: streamlit
     spec:
@@ -25,7 +25,7 @@ spec:
         - env:
             - name: API_BASE_URL
               value: http://10.43.100.87:8001
-          image: aalbuez/mlops-prediction-ui:main-37aee71
+          image: aalbuez/mlops-prediction-ui:main-9d91f95
           name: mlops-prediction-ui
           ports:
             - containerPort: 8501
