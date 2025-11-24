@@ -52,19 +52,24 @@ jobs:
       - name: Dry-run apply manifests
         run: |
           echo "Testing dry-run apply of manifests..."
+          echo "Using client-side dry-run (no cluster connection required)..."
           
-          # Crear namespace temporal para dry-run
-          kubectl create namespace apps --dry-run=client -o yaml | kubectl apply --dry-run=server -f - || true
-          
-          # Dry-run de cada manifiesto
+          # Dry-run de cada manifiesto usando client-side validation
+          # Esto valida la sintaxis y estructura sin necesidad de un cluster
           for file in Projecto-Final/k8s/*.yaml Projecto-Final/k8s/*.yml; do
-            if [ -f "$file" ] && [[ ! "$file" =~ "namespace" ]]; then
-              echo "Dry-run applying $file..."
-              kubectl apply --dry-run=server -f "$file" || exit 1
+            if [ -f "$file" ]; then
+              echo "Validating $file with kubectl..."
+              # Use --dry-run=client which doesn't require cluster connection
+              if kubectl apply --dry-run=client -f "$file" > /dev/null 2>&1; then
+                echo "  ✅ $file is valid"
+              else
+                echo "  ❌ $file has validation errors"
+                kubectl apply --dry-run=client -f "$file" || exit 1
+              fi
             fi
           done
           
-          echo "Dry-run successful for all manifests!"
+          echo "✅ Dry-run validation successful for all manifests!"
 
       - name: Check for hardcoded values
         run: |
@@ -135,7 +140,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Validation Steps:" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Kubeval syntax validation" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Kubectl dry-run" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Kubectl client-side dry-run validation" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Security checks" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Best practices validation" >> $GITHUB_STEP_SUMMARY
 
