@@ -51,7 +51,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.sidebar.title("Estado de la API")
+st.sidebar.title("Estado de la API (Viewer)")
 
 health = get_health()
 if health.get("status") == "ok":
