@@ -24,7 +24,7 @@ spec:
       containers:
         - env:
             - name: API_BASE_URL
-              value: http://api:8000
+              value: http://10.43.100.87:8001
           image: aalbuez/mlops-prediction-ui:main-28859c3
           name: mlops-prediction-ui
           ports:
