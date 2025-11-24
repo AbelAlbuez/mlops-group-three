@@ -28,9 +28,9 @@ spec:
             - name: AWS_SECRET_ACCESS_KEY
               value: adminadmin
             - name: MLFLOW_S3_ENDPOINT_URL
-              value: http://minio:9000
+              value: http://10.43.100.93:8015
             - name: MLFLOW_TRACKING_URI
-              value: http://mlflow:5000
+              value: http://10.43.100.93:8018
             - name: MODEL_NAME
               value: diabetic_risk_model
           image: aalbuez/mlops-prediction-api:main-72c857a
