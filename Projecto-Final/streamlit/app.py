@@ -51,8 +51,8 @@ st.set_page_config(
     layout="wide",
 )
 
-st.sidebar.title("Estado de la API")
 
+st.sidebar.title("Estado de la API (Github actions testing)")
 health = get_health()
 if health.get("status") == "ok":
     st.sidebar.success("API Conectada")
