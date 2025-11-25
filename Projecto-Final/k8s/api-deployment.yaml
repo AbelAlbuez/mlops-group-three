@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   annotations:
     kompose.cmd: kompose convert -f docker-compose.apps.yml -o komposefiles/ --volumes hostPath
-    kompose.version: "3262415"
+    kompose.version: "2a4c3bc"
   labels:
     io.kompose.service: api
   name: api
@@ -17,7 +17,7 @@ spec:
     metadata:
       annotations:
         kompose.cmd: kompose convert -f docker-compose.apps.yml -o komposefiles/ --volumes hostPath
-        kompose.version: "3262415"
+        kompose.version: "2a4c3bc"
       labels:
         io.kompose.service: api
     spec:
@@ -33,7 +33,7 @@ spec:
               value: http://10.43.100.93:8018
             - name: MODEL_NAME
               value: diabetic_risk_model
-          image: aalbuez/mlops-prediction-api:main-3262415
+          image: aalbuez/mlops-prediction-api:main-2a4c3bc
           name: mlops-prediction-api
           ports:
             - containerPort: 8000
