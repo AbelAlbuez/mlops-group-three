@@ -2,72 +2,66 @@
 ## Proyecto 3 - Nivel 3
 **Pontificia Universidad Javeriana**
 
-## 📋 Descripción del Proyecto
+## Descripción del Proyecto
 
-Este proyecto implementa un sistema completo de Machine Learning Operations (MLOps) para predecir la readmisión hospitalaria de pacientes diabéticos. El sistema utiliza tecnologías de contenedores, orquestación y monitoreo para el despliegue y gestión de modelos de machine learning en producción.
+Sistema MLOps para predecir readmisión hospitalaria de pacientes diabéticos. Incluye pipelines de datos, entrenamiento de modelos, API de inferencia y monitoreo.
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
-El proyecto está dividido en dos docker-compose principales:
+El proyecto se divide en tres partes principales:
 
-### 1. Infrastructure Stack (`docker-compose.yml`)
-Sistema de procesamiento de datos y entrenamiento de modelos.
+### Infrastructure Stack (`docker-compose.yml`)
 
-**Servicios:**
-- **AirFlow** (webserver + scheduler): Orquestación de pipelines
+Aquí va todo lo relacionado con procesamiento de datos y entrenamiento:
+
+- **AirFlow** (webserver + scheduler): Orquesta los pipelines de datos
 - **MLflow**: Tracking de experimentos y registro de modelos
-- **MinIO**: Almacenamiento de artifacts (S3-compatible)
-- **PostgreSQL**: Bases de datos para metadatos, datos raw y datos limpios
+- **MinIO**: Almacenamiento de artifacts (compatible con S3)
+- **PostgreSQL**: Tres bases de datos separadas para metadatos, datos raw y datos limpios
 
-**Acceso:**
+Acceso:
 - Airflow: http://localhost:8080 (admin/admin123)
 - MLflow: http://localhost:5001
 
-### 2. Applications Stack (`docker-compose.apps.yml`)
-Sistema de inferencia y testing.
+### Applications Stack (`docker-compose.apps.yml`)
 
-**Servicios:**
+Para inferencia y testing:
+
 - **API (FastAPI)**: Servicio de predicción
-- **Streamlit**: Interfaz de usuario web
+- **Streamlit**: Interfaz web para usuarios
 - **Locust**: Pruebas de carga
 
-**Acceso:**
+Acceso:
 - API Docs: http://localhost:8000/docs
 - Streamlit: http://localhost:8501
 - Locust: http://localhost:8089
 
-### 3. Monitoring Stack (Kubernetes)
-Sistema de monitoreo implementado con Kubernetes para observabilidad.
+### Monitoring Stack (Kubernetes)
 
-**Tecnologías:**
-- MicroK8s
+Monitoreo con Kubernetes usando MicroK8s:
 
-**Servicios:**
 - **Grafana**: http://10.43.100.87:3010/ (admin/admin123)
 - **Prometheus**: http://10.43.100.87:3011/
 
-> Para más detalles sobre la configuración de Kubernetes, consultar [monitoring/README.md](./monitoring/README.md)
+Más detalles en [monitoring/README.md](./monitoring/README.md)
 
----
-
-## 🚀 Inicio Rápido
+## Inicio Rápido
 
 ### Prerequisitos
 
+Necesitas:
 - Docker & Docker Compose
 - Python 3.11+
-- MicroK8s (para monitoreo)
-- 8GB RAM mínimo
-- 20GB espacio en disco
+- MicroK8s (solo si vas a usar el monitoreo)
+- Al menos 8GB RAM y 20GB de disco
 
 ### Paso 1: Levantar Infrastructure Stack
+
 ```bash
-# Clonar repositorio
 cd ~/Projecto-3
 
-# Copiar variables de entorno
+# Copiar y editar variables de entorno
 cp .env.copy .env
-# Editar .env si es necesario
 
 # Levantar servicios
 docker-compose up -d
@@ -76,46 +70,36 @@ docker-compose up -d
 docker-compose ps
 ```
 
-**Servicios que deben estar UP:**
-- mlflow
-- minio
-- airflow-webserver
-- airflow-scheduler
-- raw-db, clean-db, mlflow-db
+Deberías ver corriendo: mlflow, minio, airflow-webserver, airflow-scheduler, y las tres bases de datos (raw-db, clean-db, mlflow-db).
 
 ### Paso 2: Ejecutar Pipeline de Datos
 
-1. Acceder a Airflow: http://localhost:8080
-2. Ejecutar DAGs en orden:
-   - **DAG 1**: `1_raw_batch_ingest_15k` - Carga datos en batches
-   - **DAG 2**: `2_clean_build` - Limpia y transforma datos
-   - **DAG 3**: `3_train_and_register` - Entrena y registra modelo
+1. Abre Airflow en http://localhost:8080
+2. Ejecuta los DAGs en este orden:
+   - `1_raw_batch_ingest_15k` - Carga los datos en batches
+   - `2_clean_build` - Limpia y transforma los datos
+   - `3_train_and_register` - Entrena y registra el modelo
 
-3. Verificar en MLflow (http://localhost:5001):
-   - Experimento "diabetic_risk" creado
-   - Modelo "diabetic_risk_model" en stage "Production"
+3. Verifica en MLflow (http://localhost:5001) que:
+   - El experimiento "diabetic_risk" esté creado
+   - El modelo "diabetic_risk_model" esté en stage "Production"
 
 ### Paso 3: Levantar Applications Stack
-```bash
-# Levantar API y Streamlit
-docker-compose -f docker-compose.apps.yml up -d api streamlit
 
-# Verificar logs
+```bash
+docker-compose -f docker-compose.apps.yml up -d api streamlit
 docker-compose -f docker-compose.apps.yml logs -f
 ```
 
-**Verificar:**
-- API: http://localhost:8000/health (debe retornar "healthy")
-- Streamlit: http://localhost:8501 (debe mostrar interfaz)
+Verifica que:
+- API responda en http://localhost:8000/health
+- Streamlit esté disponible en http://localhost:8501
 
 ### Paso 4: Probar el Sistema
 
-**Opción A: Usar Streamlit (Recomendado)**
+**Opción A: Usar Streamlit**
 
-1. Abrir http://localhost:8501
-2. Seleccionar un ejemplo pre-cargado o ingresar datos manualmente
-3. Click "Realizar Predicción"
-4. Ver resultados con versión del modelo usado
+Abre http://localhost:8501, selecciona un ejemplo o ingresa datos manualmente, y haz click en "Realizar Predicción".
 
 **Opción B: Usar API directamente**
 ```bash
@@ -149,82 +133,54 @@ curl -X POST http://localhost:8000/predict \
 ```
 
 ### Paso 5: Pruebas de Carga con Locust
-```bash
-# Levantar Locust
-docker-compose -f docker-compose.apps.yml up -d locust
 
-# Abrir interfaz
-# http://localhost:8089
+```bash
+docker-compose -f docker-compose.apps.yml up -d locust
 ```
 
-**Configuración sugerida:**
-- Number of users: 10 (inicial), incrementar gradualmente
+Abre http://localhost:8089 y configura:
+- Number of users: 10 para empezar (puedes aumentar después)
 - Spawn rate: 2
 - Host: http://api:8000
 
----
-
-## 📊 Componentes del Proyecto
+## Componentes del Proyecto
 
 ### AirFlow DAGs
 
 **DAG 1: `1_raw_batch_ingest_15k`**
-- Ingesta datos en lotes de 15,000 registros
-- Etiqueta cada lote con batch_id
-- Almacena en base de datos RAW
+Carga los datos en lotes de 15,000 registros, cada uno con su batch_id, y los guarda en la base de datos RAW.
 
 **DAG 2: `2_clean_build`**
-- Procesa datos de RAW
-- Aplica transformaciones y limpieza
-- Crea columnas derivadas
-- Divide en train/val/test (80/10/10)
-- Almacena en base de datos CLEAN
+Toma los datos de RAW, aplica transformaciones y limpieza, crea columnas derivadas, y divide en train/val/test (80/10/10). Todo se guarda en CLEAN.
 
 **DAG 3: `3_train_and_register`**
-- Lee datos de CLEAN (solo train y val)
-- Entrena modelo RandomForestClassifier
-- Registra experimento en MLflow
-- Promueve mejor modelo a "Production"
+Lee los datos de CLEAN (solo train y val), entrena un RandomForestClassifier, registra todo en MLflow, y promueve el mejor modelo a "Production".
 
 ### API FastAPI
 
-**Endpoints:**
-- `GET /health`: Health check
-- `GET /model-info`: Información del modelo en Production
-- `POST /predict`: Realizar predicción
-- `POST /reload-model`: Recargar modelo desde MLflow
-- `GET /metrics`: Métricas de Prometheus
+Endpoints disponibles:
+- `GET /health` - Health check
+- `GET /model-info` - Info del modelo en Production
+- `POST /predict` - Hacer predicción
+- `POST /reload-model` - Recargar modelo desde MLflow
+- `GET /metrics` - Métricas para Prometheus
 
-**Características:**
-- Carga dinámica de modelos desde MLflow
-- No requiere cambios de código al cambiar versión de modelo
-- Expone métricas para Prometheus
-- Documentación automática en `/docs`
+La API carga modelos dinámicamente desde MLflow, así que no necesitas cambiar código cuando actualizas el modelo. También expone métricas para Prometheus y tiene documentación automática en `/docs`.
 
 ### Streamlit UI
 
-**Características:**
-- Formulario interactivo para datos del paciente
-- 2 ejemplos pre-cargados (bajo riesgo, alto riesgo)
-- Visualización de resultados con probabilidad
-- Muestra versión del modelo usado
-- Interpretación del resultado
+Interfaz web con formulario para ingresar datos del paciente. Incluye 2 ejemplos pre-cargados (bajo y alto riesgo), muestra la probabilidad del resultado, la versión del modelo usado, y una interpretación del resultado.
 
 ### Locust Load Testing
 
-**Tasks implementadas:**
+Tareas configuradas:
 - Health check (peso 1)
 - Model info (peso 2)
-- Predict (peso 10) - tarea principal
+- Predict (peso 10) - la principal
 
-**Resultados de pruebas:**
-- 10 usuarios concurrentes: ✅ 0% errores, 37ms latencia promedio
-- 5 RPS sostenido
-- P99: 110ms
+Resultados con 10 usuarios concurrentes: 0% errores, latencia promedio de 37ms, 5 RPS sostenido, P99 de 110ms.
 
----
-
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 ```
 Projecto-3/
 ├── docker-compose.yml              # Infrastructure stack
@@ -267,13 +223,11 @@ Projecto-3/
     └── clean/init/
 ```
 
----
-
-## 🔧 Configuración
+## Configuración
 
 ### Variables de Entorno
 
-Archivo `.env`:
+El archivo `.env` debe contener:
 ```bash
 # AirFlow
 AIRFLOW_UID=50000
@@ -294,125 +248,76 @@ MINIO_ROOT_USER=admin
 MINIO_ROOT_PASSWORD=adminadmin
 ```
 
----
-
-## 📈 Métricas y Monitoreo
-
-### Métricas de Prometheus
+## Métricas y Monitoreo
 
 La API expone métricas en `/metrics`:
-
 - `predictions_total`: Total de predicciones por modelo y resultado
 - `prediction_duration_seconds`: Tiempo de procesamiento
 - `prediction_errors_total`: Total de errores
 
-### Dashboards Grafana
+Grafana está disponible en http://10.43.100.87:3010 con dashboards para API Performance y ML Model Metrics.
 
-Acceder a Grafana: http://10.43.100.87:3010
-
-**Dashboards disponibles:**
-- API Performance
-- ML Model Metrics
-
----
-
-## 🧪 Testing
+## Testing
 
 ### Pruebas Manuales
+
 ```bash
-# Test de la API
 cd api/
 python test_api.py
 
-# Test de servicios
 ./test_services.sh
 ```
 
 ### Pruebas de Carga
 
-Ver resultados en Locust UI: http://localhost:8089
+Los resultados están en Locust UI (http://localhost:8089). Con 10 usuarios concurrentes obtuvimos 0% errores, latencia promedio de 37ms y P99 de 110ms.
 
-**Capacidad determinada:**
-- ✅ 10 usuarios concurrentes sin errores
-- Latencia promedio: 37ms
-- P99: 110ms
-
----
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### API no se conecta a MLflow
 
-**Solución:**
+Verifica que MLflow esté corriendo:
 ```bash
-# Verificar que MLflow esté corriendo
 docker-compose ps mlflow
-
-# Reiniciar MLflow
 docker-compose restart mlflow
-
-# Verificar logs
 docker-compose logs mlflow
 ```
 
 ### Modelo no cargado en la API
 
-**Solución:**
-1. Verificar en MLflow que hay un modelo en "Production"
-2. Ejecutar DAG 3 si no hay modelo
-3. Llamar a `POST /reload-model` en la API
+1. Verifica en MLflow que haya un modelo en "Production"
+2. Si no hay, ejecuta el DAG 3
+3. Luego llama a `POST /reload-model` en la API
 
 ### Streamlit no conecta con API
 
-**Solución:**
 ```bash
-# Verificar que API esté corriendo
 docker-compose -f docker-compose.apps.yml ps api
-
-# Ver logs de Streamlit
 docker-compose -f docker-compose.apps.yml logs streamlit
 ```
 
----
+## Notas Importantes
 
-## 📝 Notas Importantes
+El modelo usa solo features numéricas y fue entrenado con datos de `clean_data.diabetic_clean`. Tiene un accuracy de ~89% y se actualiza automáticamente cuando cambias el modelo en MLflow.
 
-### Sobre el Modelo
+Los datos vienen de 130 hospitales de EE.UU. (1999-2008), con ~101,000 registros de pacientes diabéticos. Se procesan en batches de 15,000 y se dividen en 80% train, 10% val, 10% test.
 
-- El modelo usa **solo features numéricas**
-- Entrenado con datos de `clean_data.diabetic_clean`
-- Métricas: Accuracy ~89%, F1 Score variable
-- Se actualiza automáticamente al cambiar en MLflow
+## Requisitos del Proyecto
 
-### Sobre los Datos
+- AirFlow para orquestación de pipelines (20%)
+- MLflow con bucket y base de datos (20%)
+- API que carga modelo dinámicamente (20%)
+- Interfaz Streamlit funcional (incluido en 20%)
+- Observabilidad con Prometheus/Grafana (10%)
+- Pruebas de carga con Locust (incluido en 10%)
 
-- Dataset: 130 hospitales de EE.UU. (1999-2008)
-- ~101,000 registros de pacientes diabéticos
-- Procesamiento en batches de 15,000 registros
-- Split: 80% train, 10% val, 10% test
+## Integrantes del Equipo
 
----
+- Omar Gaston Chalas
+- Abel Albuez Sanchez
+- Mauricio Morales
 
-## 🎯 Requisitos del Proyecto Cumplidos
-
-- ✅ AirFlow para orquestación de pipelines (20%)
-- ✅ MLflow con bucket y base de datos (20%)
-- ✅ API que carga modelo dinámicamente (20%)
-- ✅ Interfaz Streamlit funcional (incluido en 20%)
-- ✅ Observabilidad con Prometheus/Grafana (10%)
-- ✅ Pruebas de carga con Locust (incluido en 10%)
-
----
-
-## 👥 Integrantes del Equipo
-
-- **Omar Gaston Chalas**
-- **Abel Albuez Sanchez**
-- **Mauricio Morales**
-
----
-
-## 📚 Referencias
+## Referencias
 
 - [MLflow Documentation](https://mlflow.org/docs/latest/index.html)
 - [AirFlow Documentation](https://airflow.apache.org/docs/)
@@ -422,10 +327,4 @@ docker-compose -f docker-compose.apps.yml logs streamlit
 
 ---
 
-## 📄 Licencia
-
-Este proyecto es parte del curso de Operaciones de Machine Learning de la Pontificia Universidad Javeriana.
-
----
-
-**Última actualización:** Noviembre 2025
+Última actualización: Noviembre 2025

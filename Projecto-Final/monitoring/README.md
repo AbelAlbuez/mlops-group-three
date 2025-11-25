@@ -1,30 +1,30 @@
 # Cluster de Kubernetes
 
-Esta es la documentación de la configuración realizada en el cluster de Kubernetes.
+Documentación de la configuración del cluster de Kubernetes.
 
-> Se utilizó MicroK8s ya que ofrece una experiencia más prod-ready que Minikube, haciéndolo más robusto y extensible.
+Usamos MicroK8s porque ofrece una experiencia más prod-ready que Minikube, haciéndolo más robusto y extensible.
 
-## Guía de pasos seguidos
+## Pasos seguidos
 
-1. Instalar MicroK8s y dependencias necesarias.
-2. Habilitar los add-ons principales: DNS, Storage, MetalLB, Ingress, Helm3 y Registry.
-3. Crear los namespaces: `apps` y `monitoring`.
-4. Configurar almacenamiento persistente.
-5. Desplegar Prometheus y Grafana.
-6. Asegurar el acceso mediante port-forward.
-7. Validar la recopilación de métricas y visualizar datos en Grafana.
+1. Instalar MicroK8s y dependencias necesarias
+2. Habilitar los add-ons principales: DNS, Storage, MetalLB, Ingress, Helm3 y Registry
+3. Crear los namespaces: `apps` y `monitoring`
+4. Configurar almacenamiento persistente
+5. Desplegar Prometheus y Grafana
+6. Configurar acceso mediante port-forward
+7. Validar la recopilación de métricas y visualizar datos en Grafana
 
 ### Preparar el entorno
 
-Antes de comenzar, asegúrate de tener:
+Antes de empezar, necesitas:
 
-1. Sistema operativo actualizado (Rocky Linux).
-2. `snapd` instalado. Si no está instalado:
+1. Sistema operativo actualizado (Rocky Linux)
+2. `snapd` instalado. Si no está:
    ```sh
    sudo apt update
    sudo apt install snapd
    ```
-3. Permisos de superusuario (sudo) disponibles.
+3. Permisos de superusuario (sudo)
 
 ### Instalar MicroK8s
 
@@ -83,7 +83,7 @@ microk8s helm3 -n monitoring upgrade --install prometheus prometheus-community/p
 
 ### Instalar Grafana
 
-Grafana se configura automáticamente con Prometheus como fuente de datos mediante los parámetros de Helm:
+Grafana se configura automáticamente con Prometheus como fuente de datos usando los parámetros de Helm:
 
 ```sh
 microk8s helm3 -n monitoring upgrade --install grafana grafana/grafana \
@@ -97,24 +97,24 @@ microk8s helm3 -n monitoring upgrade --install grafana grafana/grafana \
   --set datasources."datasources\.yaml".datasources[0].isDefault=true
 ```
 
-> **Nota:** También existe el archivo `prometheus-datasource.yml` como referencia para configuración manual de datasources en Grafana.
+Nota: También existe el archivo `prometheus-datasource.yml` como referencia para configuración manual de datasources en Grafana.
 
 
 
 ### Exponer servicios mediante Port-Forward
 
-Para acceder a los servicios desde fuera del cluster, se utiliza el script `init-forward.sh` que configura port-forward en background:
+Para acceder a los servicios desde fuera del cluster, usa el script `init-forward.sh` que configura port-forward en background:
 
 ```sh
 chmod +x init-forward.sh
 ./init-forward.sh
 ```
 
-El script expone los siguientes servicios:
-- **Grafana**: `http://localhost:3010` (usuario: `admin`, contraseña: `admin123`)
-- **Prometheus**: `http://localhost:3011`
+El script expone:
+- Grafana: `http://localhost:3010` (usuario: `admin`, contraseña: `admin123`)
+- Prometheus: `http://localhost:3011`
 
-Los logs y PIDs de los procesos de port-forward se guardan en el directorio `./logs/`.
+Los logs y PIDs de los procesos de port-forward se guardan en `./logs/`.
 
 Para detener los port-forwards:
 ```sh
@@ -126,7 +126,7 @@ kill $(cat logs/grafana-forward.pid) $(cat logs/prometheus-forward.pid)
 ### Verificar instalación
 
 Una vez configurado el port-forward, los servicios deberían estar disponibles en:
-- **Grafana**: `http://localhost:3010`
-- **Prometheus**: `http://localhost:3011`
+- Grafana: `http://localhost:3010`
+- Prometheus: `http://localhost:3011`
 
-Si estás accediendo desde otra máquina en la red, reemplaza `localhost` con la IP del servidor (ej: `http://10.43.100.87:3010`).
+Si accedes desde otra máquina en la red, reemplaza `localhost` con la IP del servidor (ej: `http://10.43.100.87:3010`).
